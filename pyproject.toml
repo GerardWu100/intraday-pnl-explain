@@ -1,0 +1,30 @@
+[project]
+name = "intraday-pnl-explain"
+version = "0.1.0"
+description = "Offline-first realized variance research demo from tracked intraday parquet bars."
+readme = "README.md"
+requires-python = ">=3.12"
+dependencies = [
+  "matplotlib>=3.10.0",
+  "numpy>=2.2.0",
+  "pandas>=2.2.0",
+  "pyarrow>=18.0.0",
+  "scikit-learn>=1.6.0",
+]
+
+[project.optional-dependencies]
+dev = [
+  "ipykernel>=6.29.0",
+  "jupyter>=1.1.0",
+  "pytest>=8.3.0",
+]
+clickhouse = [
+  "clickhouse-connect>=0.8.0",
+]
+
+[build-system]
+requires = ["setuptools>=75.0"]
+build-backend = "setuptools.build_meta"
+
+[tool.setuptools.packages.find]
+where = ["src"]

@@ -1,0 +1,6 @@
+[paths]
+# Relative path to tracked offline raw intraday parquet files.
+raw_root = "data/raw"
+
+# Default directory for offline demo artifacts.
+default_output_directory = "outputs/demo_run"
