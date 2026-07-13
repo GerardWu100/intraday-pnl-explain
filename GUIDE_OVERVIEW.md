@@ -39,8 +39,9 @@ Default runtime flow:
 2. Load and normalize bars from `data/raw/intraday_bars/`.
 3. Build daily realized variance from intraday log returns.
 4. Build lagged and rolling predictors with next-day target alignment.
-5. Fit persistence, rolling-mean, and ridge models with walk-forward splits.
-6. Export metrics and non-HTML artifacts.
+5. At each post-close forecast origin, purge labels not yet observable.
+6. Fit persistence, rolling-mean, and ridge models with expanding walk-forward splits.
+7. Export errors and squared-error skill relative to persistence.
 
 Conceptual flow:
 
@@ -72,7 +73,13 @@ $$
 \log(RV_{i,d+1})
 $$
 
-All predictors are constructed from information available at day $d$ close.
+All predictors are constructed from information available after day $d$ closes.
+Training rows must also satisfy `target_date <= d`, so a missing symbol date cannot
+make an unobserved future label enter the fit.
+
+The daily measure has units of decimal return squared. The project keeps the
+one-session target unannualized. Multiplying variance by 252, or volatility by
+$\sqrt{252}$, would only rescale the target under a same-distribution assumption.
 
 ## Offline Data Contract
 
@@ -94,5 +101,9 @@ This contract is sufficient for offline pipeline and notebook execution.
 
 - One target only: next-day realized variance.
 - Two naive baselines plus one ridge benchmark.
+- The demo has one held-out date and six forecasts, so model rankings have no
+  useful statistical power.
+- Raw-data provenance is absent from the tracked manifest. Treat the payload as
+  a workflow fixture, not verified historical market data.
 - No HTML report surface, dashboard, or web app.
 - Optional ClickHouse step is separated from default runtime.

@@ -18,7 +18,8 @@ Notebook design rules:
   - shows raw manifest and parquet coverage,
   - constructs realized variance from intraday bars,
   - builds features and trains walk-forward models,
-  - writes and inspects offline artifacts.
+  - applies the post-close label-availability cutoff,
+  - writes and inspects offline artifacts, including skill versus persistence.
 
 Validation command:
 
@@ -27,3 +28,4 @@ Validation command:
 ## Part 3: Short journal
 
 - 2026-04-19: Replaced PnL explain walkthrough with realized-variance research notebook.
+- 2026-07-13: Clarified feature timing, label purging, and the feasible benchmark score.

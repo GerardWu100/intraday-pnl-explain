@@ -9,7 +9,13 @@ Metric scope is constrained to interpretable defaults:
 
 - root mean squared error (RMSE),
 - mean absolute error (MAE),
-- out-of-sample coefficient of determination ($R^2$).
+- squared-error forecast skill relative to persistence.
+
+For model $M$, skill is $1-SSE_M/SSE_P$, where $SSE_M$ is the model's sum of
+squared errors and $SSE_P$ is persistence's sum on the same forecast rows. Zero
+matches persistence; positive values improve on it; negative values are worse.
+This feasible benchmark replaces an earlier statistic whose denominator used
+the held-out outcomes' own mean.
 
 ## Part 2: Code reference
 
@@ -21,3 +27,4 @@ Metric scope is constrained to interpretable defaults:
 ## Part 3: Short journal
 
 - 2026-04-19: Added lightweight evaluation module for offline artifacts.
+- 2026-07-13: Replaced held-out-mean $R^2$ with forecast skill versus persistence.

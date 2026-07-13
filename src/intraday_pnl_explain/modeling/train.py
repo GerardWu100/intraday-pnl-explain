@@ -10,8 +10,8 @@ from intraday_pnl_explain.features.build_features import FEATURE_COLUMNS
 
 # Each baseline reads one pre-built feature column on the test date.
 BASELINE_FEATURE_COLUMNS: dict[str, str] = {
-    "persistence": "lag_1_log_rv",
-    "rolling_mean": "lag_5_mean_log_rv",
+    "persistence": "current_log_rv",
+    "rolling_mean": "trailing_5_mean_log_rv",
 }
 
 
@@ -105,14 +105,17 @@ def build_walk_forward_predictions(
     prediction_rows: list[dict[str, object]] = []
     coefficient_rows: list[dict[str, object]] = []
 
-    # Expand the training window one calendar date at a time; each step scores one test date.
+    # Expand one forecast-origin date at a time. A training label is eligible only
+    # when its target has been observed by the test date's post-close cutoff.
     for date_index in range(min_train_dates, len(unique_dates)):
         test_date = unique_dates[date_index]
-        train_dates = unique_dates[:date_index]
-
-        train_frame = frame[frame["feature_date"].isin(train_dates)].copy()
+        train_frame = frame[
+            (frame["feature_date"] < test_date)
+            & (frame["target_date"] <= test_date)
+        ].copy()
         test_frame = frame[frame["feature_date"] == test_date].copy()
-        if train_frame.empty or test_frame.empty:
+        eligible_train_dates = sorted(train_frame["feature_date"].unique())
+        if len(eligible_train_dates) < min_train_dates or test_frame.empty:
             continue
 
         for model_name, feature_column in BASELINE_FEATURE_COLUMNS.items():
@@ -144,7 +147,7 @@ def build_walk_forward_predictions(
         )
         _append_ridge_coefficient_rows(
             coefficient_rows=coefficient_rows,
-            train_end_date=pd.Timestamp(train_dates[-1]),
+            train_end_date=pd.Timestamp(eligible_train_dates[-1]),
             ridge_model=ridge_model,
         )
 

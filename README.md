@@ -47,8 +47,8 @@ Optional one-time refresh entrypoint (expected offline-only failure in this repo
 ## What This Demonstrates In Interviews
 
 - A complete offline research workflow from raw bars to evaluated forecasts.
-- Correct realized-variance target construction from intraday log returns.
-- Leak-aware feature engineering and walk-forward evaluation.
+- Session-local realized-variance target construction from intraday log returns.
+- Post-close feature engineering and label-availability-purged walk-forward evaluation.
 - Baseline-versus-linear-model comparison with interpretable outputs.
 - Portable reproducibility: clone + tracked `data/raw/` is enough to run.
 
@@ -59,3 +59,5 @@ Optional one-time refresh entrypoint (expected offline-only failure in this repo
 - Two naive baselines plus one ridge benchmark.
 - No HTML reporting layer, dashboards, or web application surface.
 - No hyperparameter search, deep learning, or live database dependency.
+- The tracked manifest does not identify the bars' vendor or generation process;
+  results demonstrate the workflow and are not market-data evidence.

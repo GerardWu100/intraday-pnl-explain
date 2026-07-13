@@ -10,8 +10,9 @@ Data flow:
 2. raw bars load and normalization,
 3. realized variance construction,
 4. feature matrix build,
-5. walk-forward model training,
-6. metrics and diagnostics export.
+5. label-availability-purged walk-forward training,
+6. error and persistence-skill export,
+7. diagnostic export.
 
 ## Part 2: Code reference
 
@@ -22,3 +23,4 @@ Data flow:
 ## Part 3: Short journal
 
 - 2026-04-19: Added unified offline demo pipeline command.
+- 2026-07-13: Pipeline metrics now use persistence as the feasible forecast benchmark.

@@ -39,3 +39,5 @@ Suggested read order:
 ## Part 3: Short journal
 
 - 2026-04-19: Rewrote root guide for offline realized-variance research refactor.
+- 2026-07-13: Replaced the infeasible held-out-mean score with forecast skill
+  versus persistence and documented the demo data's missing provenance.

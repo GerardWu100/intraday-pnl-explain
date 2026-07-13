@@ -14,6 +14,11 @@ The offline runtime path reads raw intraday parquet files from `data/raw/`.
 - `price` (float)
 - `volume` (integer)
 
+`price` is treated as one observation at the recorded minute. The contract does
+not say whether it is an open, close, midpoint, or trade price. It also does not
+record vendor or generation provenance. Those omissions prevent an empirical
+market-data interpretation of the demo results.
+
 ## Partition layout
 
 `data/raw/intraday_bars/symbol=<SYMBOL>/part-000.parquet`

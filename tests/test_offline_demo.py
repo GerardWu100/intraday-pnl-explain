@@ -27,6 +27,12 @@ def test_offline_demo_writes_expected_artifacts(tmp_path: Path) -> None:
 
     metrics_payload = json.loads(metrics_path.read_text(encoding="utf-8"))
     assert set(metrics_payload) == {"persistence", "rolling_mean", "ridge"}
+    assert set(metrics_payload["ridge"]) == {
+        "rmse",
+        "mae",
+        "skill_vs_persistence",
+    }
+    assert metrics_payload["persistence"]["skill_vs_persistence"] == 0.0
 
     predictions_frame = pd.read_parquet(predictions_path)
     assert set(predictions_frame["model_name"].unique()) == {

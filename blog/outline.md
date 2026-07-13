@@ -26,8 +26,8 @@
    - Symbols: $n$ is the number of training observations, $\beta_0$ is the intercept, $\boldsymbol{\beta}$ is the coefficient vector, and $\lambda$ is the L2 penalty strength.
    - Delimiter: display.
 4. Evaluation metrics:
-   - Purpose: interpret root mean squared error, mean absolute error, and out-of-sample $R^2$ in log-variance space.
-   - Symbols: $y_j$ and $\hat y_j$ are actual and forecast log realized variance, and $\bar y$ is the evaluation-sample mean.
+   - Purpose: interpret root mean squared error, mean absolute error, and squared-error forecast skill relative to persistence.
+   - Symbols: $y_j$ and $\hat y_j$ are actual and forecast log realized variance; $SSE_M$ and $SSE_P$ are model and persistence squared errors on matched rows.
    - Delimiter: display.
 
 ## Planned code excerpts
@@ -57,6 +57,6 @@
 ## Risks, gaps, and assumptions
 
 - Data gaps: the tracked payload covers only ten trading sessions and six symbols; after rolling-feature warm-up and walk-forward warm-up, the evaluation set is very small.
-- Assumptions: one-minute closing prices approximate the latent intraday price path; microstructure noise and overnight variance are outside the target; the regular session is 09:30 through 15:59 America/New_York; the target is evaluated in log realized-variance units.
+- Assumptions: the raw `price` field is a minute observation, but the manifest does not establish its exact bar semantics or provenance; microstructure noise and overnight variance are outside the target; the regular session is 09:30 through 15:59 America/New_York; the target is evaluated in log realized-variance units.
 - Validation checks to run before final draft: execute the offline pipeline into `blog/data/`; verify session counts, feature dates, prediction counts, and metric calculations; regenerate all graphs; run project tests; run the blog validator on both languages; verify every referenced path.
 - Deployment note: the canonical workspace is `intraday-pnl-explain/blog/`. Per the user's instruction, no publish bundle will be copied to `~/projects/website`, no Hugo build will be run there, and no website commit or push will occur in this task.

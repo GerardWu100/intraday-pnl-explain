@@ -48,7 +48,7 @@ def test_feature_builder_uses_only_information_available_at_feature_date() -> No
     source_row = rv_daily[rv_daily["date"] == feature_date].iloc[0]
     next_day_source_row = rv_daily[rv_daily["date"] > feature_date].iloc[0]
 
-    assert first_row["lag_1_log_rv"] == np.log(source_row["realized_variance"])
+    assert first_row["current_log_rv"] == np.log(source_row["realized_variance"])
     assert first_row["target_log_rv_next_day"] == np.log(
         next_day_source_row["realized_variance"]
     )

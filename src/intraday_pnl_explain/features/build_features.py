@@ -12,10 +12,10 @@ from intraday_pnl_explain.realized_variance.construct import (
 EPSILON_VARIANCE = 1e-12
 
 FEATURE_COLUMNS = [
-    "lag_1_log_rv",
-    "lag_5_mean_log_rv",
-    "lag_5_std_log_rv",
-    "prev_day_range_proxy",
+    "current_log_rv",
+    "trailing_5_mean_log_rv",
+    "trailing_5_std_log_rv",
+    "absolute_1day_log_rv_change",
     "bar_completeness",
 ]
 
@@ -43,15 +43,16 @@ def build_feature_table(rv_daily: pd.DataFrame) -> pd.DataFrame:
     clipped_variance = frame["realized_variance"].clip(lower=EPSILON_VARIANCE)
     frame["log_rv"] = np.log(clipped_variance)
 
-    # Features at date d use only information through d (same-day log RV and its lags).
-    frame["lag_1_log_rv"] = frame["log_rv"]
-    frame["lag_5_mean_log_rv"] = frame.groupby("symbol")["log_rv"].transform(
+    # The forecast is formed after date d closes, so date-d RV is available.
+    # Names say "current" and "trailing" to make that information cutoff explicit.
+    frame["current_log_rv"] = frame["log_rv"]
+    frame["trailing_5_mean_log_rv"] = frame.groupby("symbol")["log_rv"].transform(
         lambda values: values.rolling(5).mean()
     )
-    frame["lag_5_std_log_rv"] = frame.groupby("symbol")["log_rv"].transform(
+    frame["trailing_5_std_log_rv"] = frame.groupby("symbol")["log_rv"].transform(
         lambda values: values.rolling(5).std()
     )
-    frame["prev_day_range_proxy"] = frame.groupby("symbol")["log_rv"].transform(
+    frame["absolute_1day_log_rv_change"] = frame.groupby("symbol")["log_rv"].transform(
         lambda values: values.diff().abs()
     )
     frame["bar_completeness"] = frame["bar_count"] / float(EXPECTED_BAR_RETURNS_PER_DAY)
