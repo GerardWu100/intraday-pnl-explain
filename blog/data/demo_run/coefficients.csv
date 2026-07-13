@@ -1,0 +1,7 @@
+train_end_date,feature_name,coefficient
+2026-04-02,intercept,-14.44277638195361
+2026-04-02,lag_1_log_rv,-0.7131936136206696
+2026-04-02,lag_5_mean_log_rv,0.6874297956186365
+2026-04-02,lag_5_std_log_rv,0.9420913614799893
+2026-04-02,prev_day_range_proxy,0.3933734069993054
+2026-04-02,bar_completeness,0.0
