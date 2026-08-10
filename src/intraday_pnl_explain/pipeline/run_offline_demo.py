@@ -33,12 +33,22 @@ def run_offline_demo(output_directory: Path) -> None:
     rv_daily = construct_daily_realized_variance(bars=raw_bars)
     feature_table = build_feature_table(rv_daily=rv_daily)
 
-    # Walk-forward uses a short warm-up so the demo runs on the tracked sample size.
+    # Warm-up length and ridge strength are tunable in app/config.toml. The demo
+    # default is a short warm-up so the run fits the tracked sample size.
     predictions, coefficients = build_walk_forward_predictions(
         feature_table=feature_table,
-        min_train_dates=4,
-        ridge_alpha=1.0,
+        min_train_dates=config.min_train_dates,
+        ridge_alpha=config.ridge_alpha,
     )
+
+    # An over-long warm-up leaves no scored date. Say so here rather than letting
+    # the metrics step fail on a missing column of an empty table.
+    if predictions.empty:
+        raise ValueError(
+            "Walk-forward produced no out-of-sample predictions. "
+            f"min_train_dates={config.min_train_dates} exceeds the "
+            f"{feature_table['feature_date'].nunique()} feature dates available."
+        )
 
     metrics_payload = compute_model_metrics(predictions=predictions)
 

@@ -28,3 +28,6 @@ the held-out outcomes' own mean.
 
 - 2026-04-19: Added lightweight evaluation module for offline artifacts.
 - 2026-07-13: Replaced held-out-mean $R^2$ with forecast skill versus persistence.
+- 2026-08-10: Prediction-versus-actual figure now plots markers instead of a
+  connecting line. Several symbols share one target date, so a line drew a path
+  between different symbols rather than a time series.

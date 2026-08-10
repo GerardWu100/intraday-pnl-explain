@@ -3,8 +3,8 @@
 from __future__ import annotations
 
 import argparse
-from pathlib import Path
 import sys
+from pathlib import Path
 
 from intraday_pnl_explain.app.config import load_app_config
 from intraday_pnl_explain.data_access.clickhouse_extract import (
@@ -45,11 +45,13 @@ def run_selected_command(args: argparse.Namespace) -> int:
         return 0
 
     # Optional extract path is offline-only in this repo; surface a clear failure.
+    # The call always raises today, but the trailing return keeps the command
+    # from reporting success if that ever changes.
     try:
         raise_optional_clickhouse_message()
     except RuntimeError as error:
         print(str(error), file=sys.stderr)
-        return 1
+    return 1
 
 
 def main() -> None:

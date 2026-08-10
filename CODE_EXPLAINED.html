@@ -1,0 +1,1327 @@
+<!DOCTYPE html>
+<html lang="en-CA">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>intraday-pnl-explain - code explanation</title>
+<script>
+  window.MathJax = { tex: { inlineMath: [['$','$'],['\\(','\\)']], displayMath: [['$$','$$'],['\\[','\\]']] } };
+</script>
+<script src="https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-mml-chtml.js" async></script>
+<script type="module">
+  // the map diagram at the top of the page; theme follows the page palette
+  import mermaid from "https://cdn.jsdelivr.net/npm/mermaid@11/dist/mermaid.esm.min.mjs";
+  const isLight = document.documentElement.getAttribute("data-theme") === "light";
+  mermaid.initialize({ startOnLoad: true, theme: isLight ? "neutral" : "dark",
+                       flowchart: { curve: "basis", useMaxWidth: true } });
+</script>
+<style>
+  :root{
+    /* dark is the default palette; a light override follows below */
+    --paper:#12161b; --bg:#12161b; --panel:#1b2027; --card:#1a1f26; --surface:#1a1f26; --raise:#1e242c;
+    --ink:#e9eef4; --soft:#b3bec9; --muted:#b3bec9; --faint:#828d99;
+    --line:#2c343e; --line2:#232a33;
+    --green:#6fc796; --greenbg:#14241c; --greenline:#2f4d3a;
+    --amber:#e0b365; --amberbg:#262010; --amberline:#4d3f20;
+    --blue:#87b8ee; --bluebg:#141e2b; --blueline:#2d425c;
+    --red:#e89296; --redbg:#26161a; --redline:#4f2f35;
+    --slate:#a7b1be; --slatebg:#1c2027; --slateline:#353c46;
+    --accent:#4fb9c2; --accent-ink:#6fd0d8; --accent-bg:#10262a;
+    --def:#87b8ee; --def-bg:#141e2b; --def-bd:#2d425c;
+    --why:#6fc796; --why-bg:#14241c; --why-bd:#2f4d3a;
+    --warn:#e0b365; --warn-bg:#262010; --warn-bd:#4d3f20;
+    --flag:#e89296; --flag-bg:#26161a; --flag-bd:#4f2f35;
+    --sans:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Helvetica,Arial,sans-serif;
+    --mono:ui-monospace,"SF Mono","Cascadia Code",Menlo,Consolas,monospace;
+  }
+  :root[data-theme="light"]{
+    --paper:#faf8f4; --bg:#faf8f4; --panel:#f1ede6; --card:#ffffff; --surface:#ffffff; --raise:#fbfaf7;
+    --ink:#1b1b1b; --soft:#4a453e; --muted:#4a453e; --faint:#777067;
+    --line:#d6d0c6; --line2:#e7e2da;
+    --green:#2f6b4c; --greenbg:#e7f1ea; --greenline:#bcdac9;
+    --amber:#8f6413; --amberbg:#f6efdd; --amberline:#e3d3a8;
+    --blue:#2c5f95; --bluebg:#e7eef7; --blueline:#c3d6ea;
+    --red:#943232; --redbg:#f6eaea; --redline:#e2c4c4;
+    --slate:#525a66; --slatebg:#eceef1; --slateline:#cdd2d9;
+    --accent:#0e7c86; --accent-ink:#0b5f67; --accent-bg:#e7f4f4;
+    --def:#2c5f95; --def-bg:#e7eef7; --def-bd:#c3d6ea;
+    --why:#2f6b4c; --why-bg:#e7f1ea; --why-bd:#bcdac9;
+    --warn:#8f6413; --warn-bg:#f6efdd; --warn-bd:#e3d3a8;
+    --flag:#943232; --flag-bg:#f6eaea; --flag-bd:#e2c4c4;
+  }
+
+  *{box-sizing:border-box}
+  html{scroll-behavior:smooth;font-size:16px}
+  @media (prefers-reduced-motion:reduce){html{scroll-behavior:auto}}
+  body{margin:0;background:var(--bg);color:var(--ink);font-family:var(--sans);
+    font-size:18px;line-height:1.58;-webkit-font-smoothing:antialiased;
+    text-rendering:optimizeLegibility}
+  .wrap{padding:2.2em clamp(1em,4vw,3.2em) 5em}
+
+  h1{font-size:clamp(2.1rem,5vw,2.7rem);line-height:1.12;letter-spacing:-.02em;font-weight:800;
+    text-wrap:balance;margin:.2em 0 .2em}
+  h2{font-size:1.5rem;font-weight:750;letter-spacing:-.01em;text-wrap:balance;
+    margin:2.4em 0 .5em;padding-top:.7em;border-top:2px solid var(--line)}
+  h3{font-size:1.26rem;font-weight:700;margin:1.7em 0 .4em;color:var(--ink)}
+  h3 code{font-size:.92em}
+  h4{font-size:1rem;margin:1.3em 0 .3em;text-transform:uppercase;letter-spacing:.05em;color:var(--faint)}
+  p{margin:.7em 0}
+  ul,ol{margin:.55em 0;padding-left:1.3em}
+  li{margin:.3em 0}
+  strong,b{color:var(--ink)}
+  a{color:var(--accent-ink);text-underline-offset:2px}
+  a:hover{color:var(--accent)}
+  hr{border:none;border-top:1px solid var(--line);margin:2.5em 0}
+  :focus-visible{outline:2px solid var(--accent);outline-offset:2px}
+
+  code{font-family:var(--mono);font-size:.9em;background:var(--panel);color:var(--ink);
+    padding:.1em .4em;border-radius:4px}
+  pre{background:var(--raise);border:1px solid var(--line);border-radius:10px;padding:1em 1.15em;
+    overflow-x:auto;font-size:.94rem;line-height:1.62;margin:1.1em 0;color:var(--ink);
+    font-family:var(--mono)}
+  pre code{background:none;padding:0;font-size:1em}
+  pre .c{color:var(--faint);font-style:italic}
+
+  .lede{font-size:1.12rem;line-height:1.48;color:var(--soft)}
+  .eyebrow{font-family:var(--mono);font-size:.78rem;letter-spacing:.16em;text-transform:uppercase;
+    color:var(--accent-ink);margin:0 0 1.1em;display:flex;gap:.6em;align-items:center;flex-wrap:wrap}
+  .eyebrow .dot{width:6px;height:6px;border-radius:50%;background:var(--accent)}
+  .sec-no{font-family:var(--mono);font-size:.85rem;color:var(--accent-ink);
+    letter-spacing:.1em;display:block;margin-bottom:.15em}
+  .tag{display:inline-block;font-size:.78rem;text-transform:uppercase;letter-spacing:.08em;
+    background:var(--greenbg);color:var(--green);border:1px solid var(--greenline);
+    padding:.25em .75em;border-radius:20px;margin-bottom:1em}
+  .big{font-size:1.42rem;font-weight:700;color:var(--green)}
+  .pill{font-variant-numeric:tabular-nums;font-weight:600}
+  .fnote{font-size:.95rem;color:var(--soft)}
+  .reads{margin:.55em 0}
+  .reads b{color:var(--soft)}
+  .foot{margin-top:3em;padding-top:1.2em;border-top:1px solid var(--line);
+    color:var(--soft);font-size:.95rem}
+
+  .box{border:1px solid var(--line);border-left-width:4px;border-radius:10px;
+    padding:1em 1.2em;margin:1.3em 0;background:var(--card)}
+  .box>:first-child{margin-top:0}.box>:last-child{margin-bottom:0}
+  .box p:first-child{margin-top:0}.box p:last-child{margin-bottom:0}
+  .box .k{font-weight:700;font-size:.82rem;text-transform:uppercase;letter-spacing:.08em;
+    display:block;margin-bottom:.45em}
+  .def{border-left-color:var(--def);background:var(--def-bg)}.def .k{color:var(--def)}
+  .gist{border-left-color:var(--accent);background:var(--accent-bg)}.gist .k{color:var(--accent-ink)}
+  .why{border-left-color:var(--why);background:var(--why-bg)}.why .k{color:var(--why)}
+  .warn{border-left-color:var(--warn);background:var(--warn-bg)}.warn .k{color:var(--warn)}
+  .flag{border-left-color:var(--flag);background:var(--flag-bg)}.flag .k{color:var(--flag)}
+  .data{border-left-color:var(--slate);background:var(--slatebg)}.data .k{color:var(--slate)}
+  .io{display:grid;grid-template-columns:1fr 1fr;gap:.9em}
+  .io.stack{grid-template-columns:1fr}
+  @media (max-width:820px){.io{grid-template-columns:1fr}}
+  .io .lab{font-family:var(--mono);font-size:.74rem;letter-spacing:.1em;text-transform:uppercase;
+    color:var(--faint);font-weight:700}
+  .io pre{margin:.25em 0 0;font-size:.8rem;line-height:1.5}
+  .data>p{font-size:.95rem}
+
+  .toc{background:var(--panel);border:1px solid var(--line);border-radius:12px;
+    padding:1.1em 1.4em;margin:1.8em 0}
+  .toc .rk{font-family:var(--mono);font-size:.76rem;letter-spacing:.14em;text-transform:uppercase;
+    color:var(--faint);margin-bottom:.5em}
+  .toc ol{margin:.35em 0 0;padding-left:1.4em}
+  .toc a{text-decoration:none;color:var(--ink)}
+  .toc a:hover{color:var(--accent-ink)}
+
+  .scroll{overflow-x:auto;margin:1.2em 0}
+  table{border-collapse:collapse;width:100%;margin:1.2em 0;font-size:1rem;background:var(--card);
+    font-variant-numeric:tabular-nums}
+  .scroll table{margin:0}
+  th,td{border:1px solid var(--line);padding:.55em .75em;text-align:left;vertical-align:top}
+  th,thead th{background:var(--panel);color:var(--ink);font-weight:700}
+  td.n,th.n{text-align:right}
+  .pass{color:var(--green);font-weight:700}
+  .failw{color:var(--red);font-weight:700}
+
+  .chip{display:inline-block;font-size:.74rem;font-weight:700;text-transform:uppercase;
+    letter-spacing:.06em;padding:.15em .55em;border-radius:4px;white-space:nowrap;border:1px solid}
+  .c-veto{background:var(--redbg);color:var(--red);border-color:var(--redline)}
+  .c-drop{background:var(--amberbg);color:var(--amber);border-color:var(--amberline)}
+  .c-never{background:var(--slatebg);color:var(--slate);border-color:var(--slateline)}
+  .c-bug{background:var(--bluebg);color:var(--blue);border-color:var(--blueline)}
+  .legend{display:flex;flex-wrap:wrap;gap:.5em 1.1em;margin:1em 0 0;font-size:.92rem;color:var(--soft)}
+  .legend span.chip{margin-right:.4em}
+
+  figure{margin:1.6em 0;text-align:center}
+  /* charts are rendered on white canvases; keep the white plate but soften the glare */
+  figure img{max-width:100%;height:auto;border:1px solid var(--line);border-radius:8px;
+    background:#fff;padding:6px}
+  :root:not([data-theme="light"]) figure img{filter:brightness(.94) contrast(1.02)}
+  figcaption{font-size:.92rem;color:var(--soft);margin-top:.6em;
+    margin-left:auto;margin-right:auto}
+
+  /* the map diagram sits on its own plate and scrolls sideways rather than the page */
+  .mermaid{background:var(--card);border:1px solid var(--line);border-radius:12px;
+    padding:1.2em;margin:1.4em 0;overflow-x:auto;text-align:center;
+    font-family:var(--sans)}
+  .mermaid svg{max-width:100%;height:auto}
+
+  /* rendered maths inherits the page colour instead of MathJax's own default */
+  mjx-container,.katex{color:inherit}
+  mjx-container[display="true"],.katex-display{overflow-x:auto;overflow-y:hidden;padding:.15em 0}
+</style>
+</head><body>
+<div class="wrap">
+
+<p class="eyebrow"><span class="dot"></span>intraday-pnl-explain &middot; offline research demo &middot; code walkthrough</p>
+<h1>intraday-pnl-explain: reading the code</h1>
+<p class="lede">What the project does, how the seven modules fit together, and the handful of
+decisions that decide whether the numbers mean anything.</p>
+
+<div class="box def">
+  <span class="k">How to use this</span>
+  <p>Sections follow the order the code runs in. Every snippet is copied from the file named
+  in its heading. Every number in a <b>Sample data</b> box came from running the real pipeline
+  on the tracked files in <code>data/raw/</code> &mdash; nothing here is estimated.
+  This page explains <b>structure and behaviour</b>, not syntax; trivial lines are skipped.</p>
+</div>
+
+<div class="box why">
+  <span class="k">The process in plain English</span>
+  <p>The project asks one question: if you know how choppy a stock's trading was today, can you
+  guess how choppy it will be tomorrow better than by simply saying "the same as today"?
+  It reads minute-by-minute prices from local files, adds up the squared minute-to-minute moves
+  within each day to get a single "how choppy was today" number, builds a few simple summaries of
+  the recent past, then compares three forecasting rules on days the models never saw.
+  It writes the scores, the forecasts, the fitted weights, and four charts to disk.</p>
+</div>
+
+<h2 id="map"><span class="sec-no">00</span>Map</h2>
+
+<div class="mermaid">
+flowchart LR
+  cfg[/"app/config.toml"/] --> conf["load_app_config()"]
+  raw[("data/raw parquet + manifest")] --> man["load_raw_manifest()"]
+  man --> bars["load_raw_intraday_bars()"]
+  raw --> bars
+  bars --> rv["construct_daily_realized_variance()"]
+  rv --> feat["build_feature_table()"]
+  feat --> wf["build_walk_forward_predictions()"]
+  conf --> wf
+  wf --> met["compute_model_metrics()"]
+  wf --> fig["write_diagnostic_figures()"]
+  rv --> fig
+  met --> out[("outputs/demo_run")]
+  fig --> out
+  cli["cli.py"] --> pipe["run_offline_demo()"]
+  pipe --> man
+</div>
+<p class="fnote">Rounded boxes are functions, cylinders are stored data, the slanted box is a
+settings file. Arrows point the way data moves. <code>run_offline_demo()</code> is the one
+function that calls all the others in order.</p>
+
+<div class="toc">
+  <div class="rk">Contents</div>
+  <ol>
+    <li><a href="#sec1">What the project is, and how to run it</a></li>
+    <li><a href="#sec2">Settings &mdash; <code>config.toml</code> and <code>load_app_config</code></a></li>
+    <li><a href="#sec3">The data contract &mdash; <code>load_raw_manifest</code></a></li>
+    <li><a href="#sec4">Loading bars &mdash; <code>load_raw_intraday_bars</code></a></li>
+    <li><a href="#sec5">The target &mdash; <code>construct_daily_realized_variance</code></a></li>
+    <li><a href="#sec6">Features and the leakage rule &mdash; <code>build_feature_table</code></a></li>
+    <li><a href="#sec7">Walk-forward training &mdash; <code>build_walk_forward_predictions</code></a></li>
+    <li><a href="#sec8">Scoring &mdash; <code>compute_model_metrics</code></a></li>
+    <li><a href="#sec9">Charts &mdash; <code>write_diagnostic_figures</code></a></li>
+    <li><a href="#sec10">Wiring it together &mdash; <code>run_offline_demo</code> and the CLI</a></li>
+    <li><a href="#fixes">Fixes applied</a></li>
+    <li><a href="#callgraph">Call graph</a></li>
+    <li><a href="#edge">Edge cases</a></li>
+    <li><a href="#traps">Gotchas and traps</a></li>
+    <li><a href="#limits">Limitations, stated honestly</a></li>
+    <li><a href="#verify">How the code is verified</a></li>
+  </ol>
+</div>
+
+<h2 id="sec1"><span class="sec-no">01</span>What the project is, and how to run it</h2>
+
+<p>The research question, taken from <code>README.md</code>: <b>can simple lagged intraday
+realized-variance features forecast next-day realized variance better than naive baselines?</b></p>
+
+<p>Two terms, defined before they are used again:</p>
+<ul>
+  <li><b>Realized variance</b> &mdash; a measure of how much a price moved during one trading day,
+  built by adding up the squared minute-to-minute returns. Bigger number, choppier day.
+  It is a <i>measurement</i> of the past, not a forecast.</li>
+  <li><b>Baseline</b> &mdash; a deliberately dumb forecast you must beat before claiming a model
+  works. Here the main one is <i>persistence</i>: "tomorrow will be exactly like today".</li>
+</ul>
+
+<p>Everything runs offline from files tracked in the repository. There is no database call, no
+network call, and no credential on the default path.</p>
+
+<h4>Folder layout</h4>
+<div class="scroll">
+<table>
+<thead><tr><th>Path</th><th>What lives there</th></tr></thead>
+<tbody>
+<tr><td><code>src/intraday_pnl_explain/app/</code></td><td>Command-line parsing and <code>config.toml</code> loading.</td></tr>
+<tr><td><code>src/intraday_pnl_explain/data_access/</code></td><td>Manifest validation, parquet loading, and one stub for the optional database path.</td></tr>
+<tr><td><code>src/intraday_pnl_explain/realized_variance/</code></td><td>Turns minute bars into one number per symbol per day.</td></tr>
+<tr><td><code>src/intraday_pnl_explain/features/</code></td><td>Turns the daily numbers into predictors plus a next-day label.</td></tr>
+<tr><td><code>src/intraday_pnl_explain/modeling/</code></td><td>The walk-forward loop and the three forecasting rules.</td></tr>
+<tr><td><code>src/intraday_pnl_explain/evaluation/</code></td><td>Error metrics and four diagnostic charts.</td></tr>
+<tr><td><code>src/intraday_pnl_explain/pipeline/</code></td><td>One function that runs all of the above in order.</td></tr>
+<tr><td><code>data/raw/</code></td><td>Six parquet files of one-minute bars plus <code>raw_manifest.json</code>.</td></tr>
+<tr><td><code>tests/</code></td><td>Fifteen tests: data contract, formula checks, leakage check, end-to-end runs.</td></tr>
+<tr><td><code>notebooks/</code></td><td>A teaching walkthrough that imports the same modules.</td></tr>
+<tr><td><code>outputs/</code></td><td>Run artifacts. Ignored by git.</td></tr>
+</tbody>
+</table>
+</div>
+
+<h4>Entry points</h4>
+<div class="scroll">
+<table>
+<thead><tr><th>Command</th><th>What happens</th></tr></thead>
+<tbody>
+<tr><td><code>uv sync --extra dev</code></td><td>Installs dependencies from <code>uv.lock</code>.</td></tr>
+<tr><td><code>uv run python -m intraday_pnl_explain.app.cli run-offline-demo</code></td><td>Runs the whole pipeline and writes to <code>outputs/demo_run</code>.</td></tr>
+<tr><td><code>... run-offline-demo --output-dir PATH</code></td><td>Same, writing somewhere else. <code>PATH</code> is resolved against your current directory, not the project root.</td></tr>
+<tr><td><code>... build-raw-manifest</code></td><td>Always fails with a clear message and exit code 1. It exists to mark where the optional one-time database refresh would go.</td></tr>
+<tr><td><code>uv run python -m pytest -v</code></td><td>Runs the 15 tests. All pass on this checkout.</td></tr>
+</tbody>
+</table>
+</div>
+
+<h4>What the demo data actually is</h4>
+<div class="box data"><span class="k">Sample data</span>
+<div class="io">
+<div><span class="lab">in &mdash; data/raw/raw_manifest.json</span>
+<pre>dataset_name  intraday_variance_demo
+symbols       AAPL MSFT NVDA XOM CVX JPM
+start_date    2026-03-24
+end_date      2026-04-06
+bar_frequency 1min
+timezone      UTC
+trading_session_timezone  America/New_York
+trading_session           09:30-15:59
+row_count     23400
+file_count    6
+total_bytes   416108</pre></div>
+<div><span class="lab">out &mdash; loaded frame</span>
+<pre>bars.shape = (23400, 4)
+
+symbol  timestamp                  price     volume
+AAPL    2026-03-24 13:30:00+00:00  103.942719  1000
+AAPL    2026-03-24 13:31:00+00:00  103.948861  1000
+AAPL    2026-03-24 13:32:00+00:00  103.955053  1000
+AAPL    2026-03-24 13:33:00+00:00  103.961294  1000
+
+3900 rows per symbol &lt;- 10 sessions x 390 minutes</pre></div>
+</div>
+<p>13:30 UTC is 09:30 in New York, so the first bar of the session is the first row.
+Six symbols x 10 sessions x 390 one-minute bars = 23,400 rows, which is exactly the
+<code>row_count</code> the manifest claims.</p></div>
+
+<div class="box flag"><span class="k">The weakness, stated honestly</span>
+<p>The manifest names no vendor and no generation method, and the prices in the sample rise in
+a very smooth line. <code>docs/reference/raw_data_contract.md</code> says so plainly. Treat the
+payload as a fixture that exercises the workflow, not as market data. Nothing on this page is
+evidence about real markets.</p></div>
+
+<h2 id="sec2"><span class="sec-no">02</span>Settings &mdash; <code>config.toml</code> and <code>load_app_config</code></h2>
+
+<pre>[paths]
+<span class="c"># Relative path to tracked offline raw intraday parquet files.</span>
+raw_root = "data/raw"
+
+<span class="c"># Default directory for offline demo artifacts.</span>
+default_output_directory = "outputs/demo_run"
+
+[modeling]
+<span class="c"># Number of distinct feature dates that must be available before the walk-forward
+# loop scores its first out-of-sample date. Larger values mean a longer warm-up
+# and fewer scored dates. The tracked demo payload has five feature dates, so
+# values above 4 produce no predictions at all.</span>
+min_train_dates = 4
+
+<span class="c"># L2 regularization strength for the ridge regression. Larger values shrink the
+# fitted feature weights toward zero; 0.0 reduces ridge to ordinary least squares.</span>
+ridge_alpha = 1.0</pre>
+
+<pre>def load_app_config() -&gt; AppConfig:
+    <span class="c">"""Load TOML config and resolve script-relative project paths."""</span>
+    config_path = Path(__file__).resolve().with_name("config.toml")
+    project_root = config_path.parents[3]
+
+    payload = tomllib.loads(config_path.read_text(encoding="utf-8"))
+    paths = payload["paths"]
+    modeling = payload["modeling"]
+    raw_root = project_root / paths["raw_root"]
+    default_output_directory = project_root / paths["default_output_directory"]
+
+    return AppConfig(
+        project_root=project_root,
+        raw_root=raw_root,
+        default_output_directory=default_output_directory,
+        min_train_dates=int(modeling["min_train_dates"]),
+        ridge_alpha=float(modeling["ridge_alpha"]),
+    )</pre>
+
+<div class="box gist"><span class="k">In plain words</span>
+<p>Reads the four settings out of one small text file and turns the two path settings into
+full absolute paths, working out where the project root is from the file's own location.</p></div>
+
+<div class="box def"><span class="k">What it does</span>
+<p><b>Input:</b> nothing; it finds <code>config.toml</code> beside itself.
+<b>Output:</b> a frozen <code>AppConfig</code> with <code>project_root</code>, <code>raw_root</code>,
+<code>default_output_directory</code>, <code>min_train_dates</code>, <code>ridge_alpha</code>.
+<b>Role:</b> the single place every other module asks "where is the data and how should the model be set up".</p></div>
+
+<div class="box data"><span class="k">Sample data</span>
+<div class="io">
+<div><span class="lab">in &mdash; file location</span>
+<pre>src/intraday_pnl_explain/app/config.py
+parents[0] = .../app
+parents[1] = .../intraday_pnl_explain
+parents[2] = .../src
+parents[3] = .../intraday-pnl-explain</pre></div>
+<div><span class="lab">out &mdash; load_app_config()</span>
+<pre>project_root
+  /home/.../intraday-pnl-explain
+raw_root
+  /home/.../intraday-pnl-explain/data/raw
+default_output_directory
+  /home/.../intraday-pnl-explain/outputs/demo_run
+min_train_dates 4
+ridge_alpha     1.0</pre></div>
+</div>
+<p>Printed by importing the module and calling the function; the paths are this machine's real ones.</p></div>
+
+<div class="box why"><span class="k">Why the root is derived, not passed in</span>
+<p><code>Path(__file__).resolve().parents[3]</code> means the pipeline works no matter which
+directory you launch it from. If it used a relative path like <code>"data/raw"</code> directly,
+running the code from inside <code>notebooks/</code> would fail. The notebook still does its own
+root-finding because it cannot rely on <code>__file__</code>.</p></div>
+
+<div class="box warn"><span class="k">Trap</span>
+<p><code>parents[3]</code> is a hard-coded depth. If anyone moves <code>config.py</code> up or
+down one folder, <code>project_root</code> silently points at the wrong directory and you get a
+confusing "file not found" rather than a clear error. The depth is a fact about the layout, not
+a setting, so it cannot live in the config file it is used to find.</p></div>
+
+<h2 id="sec3"><span class="sec-no">03</span>The data contract &mdash; <code>load_raw_manifest</code></h2>
+
+<pre>def load_raw_manifest(raw_root: Path) -&gt; RawManifest:
+    manifest_path = raw_root / "raw_manifest.json"
+    payload = json.loads(manifest_path.read_text(encoding="utf-8"))
+
+    <span class="c"># Fail fast when the tracked manifest drifts from the runtime contract.</span>
+    missing_keys = REQUIRED_MANIFEST_KEYS.difference(payload)
+    if missing_keys:
+        missing_keys_text = ", ".join(sorted(missing_keys))
+        raise ValueError(f"Raw manifest is missing keys: {missing_keys_text}")
+
+    return RawManifest(
+        dataset_name=str(payload["dataset_name"]),
+        symbols=list(payload["symbols"]),
+        ...
+    )</pre>
+
+<div class="box gist"><span class="k">In plain words</span>
+<p>Reads the small description file that sits next to the data, checks that all thirteen expected
+fields are there, and hands back a typed object instead of a loose dictionary.</p></div>
+
+<div class="box def"><span class="k">What it does</span>
+<p><b>Input:</b> the folder holding <code>raw_manifest.json</code>.
+<b>Output:</b> a frozen <code>RawManifest</code> dataclass with thirteen fields.
+<b>Role:</b> supplies the symbol list and the session timezone to the bar loader, and gives the
+whole pipeline one loud failure point if the tracked data changes shape.</p></div>
+
+<div class="box why"><span class="k">Why a dataclass rather than the raw dictionary</span>
+<p>Two reasons. Field names get checked by the editor and the type checker instead of by a typo
+at run time. And the explicit <code>str()</code>, <code>int()</code>, <code>list()</code> casts
+mean a manifest that stores <code>row_count</code> as the text <code>"23400"</code> still produces
+an integer downstream, rather than failing much later inside a comparison.</p></div>
+
+<div class="box warn"><span class="k">Trap</span>
+<p>The check is <b>missing keys only</b>. Extra keys are accepted and ignored, and no value is
+validated: nothing confirms that <code>symbols</code> is a list of strings, that
+<code>start_date</code> parses as a date, or that <code>row_count</code> matches the files.
+The last of those is checked, but by a test (<code>tests/test_raw_contract.py</code>), not by the
+loader. A corrupted manifest passes this function and fails later.</p></div>
+
+<h2 id="sec4"><span class="sec-no">04</span>Loading bars &mdash; <code>load_raw_intraday_bars</code></h2>
+
+<pre><span class="c"># Regular NYSE cash session window in exchange-local time.</span>
+SESSION_START_TIME = time(9, 30)
+SESSION_END_TIME = time(15, 59)
+
+def load_raw_intraday_bars(raw_root: Path, manifest: RawManifest) -&gt; pd.DataFrame:
+    parquet_paths = discover_raw_parquet_paths(
+        raw_root=raw_root, symbols=manifest.symbols
+    )
+    if not parquet_paths:
+        raise ValueError(
+            "No tracked raw parquet files were found under data/raw/intraday_bars"
+        )
+
+    frames: list[pd.DataFrame] = []
+    for parquet_path in parquet_paths:
+        frame = pd.read_parquet(parquet_path)
+        frames.append(frame)
+
+    bars = pd.concat(frames, ignore_index=True)
+    bars = bars.loc[:, manifest.required_columns].copy()
+
+    bars["timestamp"] = pd.to_datetime(bars["timestamp"], utc=True)
+    bars = bars.sort_values(["symbol", "timestamp"]).reset_index(drop=True)
+    bars = bars.drop_duplicates(subset=["symbol", "timestamp"], keep="last")
+
+    <span class="c"># Keep only bars inside the regular session window in exchange-local time.</span>
+    local_timestamps = bars["timestamp"].dt.tz_convert(
+        manifest.trading_session_timezone
+    )
+    local_times = local_timestamps.dt.time
+    in_session_mask = (local_times &gt;= SESSION_START_TIME) &amp; (
+        local_times &lt;= SESSION_END_TIME
+    )
+    bars = bars.loc[in_session_mask].reset_index(drop=True)
+
+    return bars</pre>
+
+<div class="box gist"><span class="k">In plain words</span>
+<p>Opens one parquet file per symbol, stacks them into a single table, keeps only the four
+agreed columns, puts the rows in time order, throws away duplicate timestamps, and drops any bar
+outside the regular 09:30&ndash;15:59 New York trading window.</p></div>
+
+<div class="box def"><span class="k">What it does</span>
+<p><b>Input:</b> the raw folder and the manifest.
+<b>Output:</b> a single frame with columns <code>symbol</code>, <code>timestamp</code> (UTC),
+<code>price</code>, <code>volume</code> &mdash; 23,400 rows on the tracked data.
+<b>Role:</b> the only place the pipeline touches the file system for market data.</p></div>
+
+<div class="box why"><span class="k">Why the order of the cleaning steps matters</span>
+<p><code>sort_values</code> runs <i>before</i> <code>drop_duplicates(keep="last")</code>. Sorting
+first makes "last" mean "the last row for that timestamp after ordering", which is deterministic.
+Deduplicating first would leave whichever row happened to arrive last in file order &mdash; a
+result that could change if the files were regenerated.</p></div>
+
+<div class="box warn"><span class="k">Trap</span>
+<p>Session filtering converts to local time <b>before</b> comparing, using
+<code>manifest.trading_session_timezone</code>. Comparing raw UTC clock times against 09:30 would
+be wrong twice a year, because New York is five hours behind UTC in winter and four in summer, so
+the session sits at a different UTC time in each half of the year.</p></div>
+
+<div class="box flag"><span class="k">Two sources of truth for the same fact</span>
+<p>The window 09:30&ndash;15:59 is hard-coded as module constants, while the manifest separately
+carries <code>trading_session = "09:30-15:59"</code>. Nothing checks that the two agree. The
+timezone <i>is</i> read from the manifest, so the code half-trusts the manifest and half-ignores
+it. Today the two match, so behaviour is correct; a manifest describing a different exchange
+would be silently half-honoured.</p></div>
+
+<div class="box warn"><span class="k">Trap in <code>discover_raw_parquet_paths</code></span>
+<p>It globs each symbol's folder and extends the list. A symbol listed in the manifest with no
+folder on disk contributes nothing and raises nothing. The <code>ValueError</code> only fires if
+<b>every</b> symbol is missing. A run that quietly loses one of six symbols looks identical to a
+healthy run.</p></div>
+
+<h2 id="sec5"><span class="sec-no">05</span>The target &mdash; <code>construct_daily_realized_variance</code></h2>
+
+<pre><span class="c"># Regular session has 389 one-minute return intervals between 09:30 and 15:59 ET.</span>
+EXPECTED_BAR_RETURNS_PER_DAY = 389
+
+def construct_daily_realized_variance(bars: pd.DataFrame) -&gt; pd.DataFrame:
+    prepared_bars = bars.copy()
+    prepared_bars["timestamp"] = pd.to_datetime(prepared_bars["timestamp"], utc=True)
+    prepared_bars = prepared_bars.sort_values(["symbol", "timestamp"]).reset_index(
+        drop=True
+    )
+
+    <span class="c"># Assign each bar to its New York trading date before aggregating within the day.</span>
+    local_date = prepared_bars["timestamp"].dt.tz_convert("America/New_York").dt.date
+    prepared_bars["date"] = pd.to_datetime(local_date)
+
+    group_columns = ["symbol", "date"]
+    prepared_bars["log_return"] = prepared_bars.groupby(group_columns)[
+        "price"
+    ].transform(lambda values: np.log(values / values.shift(1)))
+
+    realized_daily = (
+        prepared_bars.groupby(group_columns, as_index=False)
+        .agg(
+            realized_variance=("log_return", _sum_squared_log_returns),
+            bar_count=("log_return", _non_missing_log_return_count),
+        )
+        .sort_values(["symbol", "date"])
+        .reset_index(drop=True)
+    )
+
+    realized_daily["realized_volatility"] = np.sqrt(realized_daily["realized_variance"])
+    realized_daily["is_complete_session"] = (
+        realized_daily["bar_count"] &gt;= EXPECTED_BAR_RETURNS_PER_DAY
+    )
+
+    return realized_daily</pre>
+
+<div class="box gist"><span class="k">In plain words</span>
+<p>For each stock and each trading day, it works out how much the price changed from one minute
+to the next, squares each of those changes, and adds them all up. One number per stock per day
+saying how choppy that day was.</p></div>
+
+<div class="box def"><span class="k">What it does</span>
+<p><b>Input:</b> the 23,400-row bar frame.
+<b>Output:</b> 60 rows (6 symbols x 10 days) with <code>symbol</code>, <code>date</code>,
+<code>realized_variance</code>, <code>bar_count</code>, <code>realized_volatility</code>,
+<code>is_complete_session</code>.
+<b>Role:</b> this is the quantity the whole project forecasts.</p></div>
+
+<div class="box def"><span class="k">The formula</span>
+<p>Minute return, for symbol $i$ at minute $t$:</p>
+<p>$$r_{i,t} = \log\!\left(\frac{P_{i,t}}{P_{i,t-1}}\right)$$</p>
+<p>Daily realized variance and its square root, realized volatility, for trading date $d$:</p>
+<p>$$RV_{i,d} = \sum_{t \in d} r_{i,t}^{2}, \qquad RVol_{i,d} = \sqrt{RV_{i,d}}$$</p>
+<p class="fnote">$P_{i,t}$ is the price of symbol $i$ recorded at minute $t$, in dollars.
+$r_{i,t}$ is the log return over that minute, a pure number. $\log$ is the natural logarithm.
+$t \in d$ means "all minutes belonging to trading date $d$". $RV_{i,d}$ has units of
+decimal-return squared; $RVol_{i,d}$ has units of decimal return. The sum runs over the
+389 minute intervals inside a full 390-bar session, because the first bar of the day has no
+preceding bar to compare against.</p></div>
+
+<div class="box data"><span class="k">Sample data</span>
+<div class="io stack">
+<div><span class="lab">in &mdash; AAPL, 2026-03-24, first four bars (New York time)</span>
+<pre>2026-03-24 09:30:00-04:00  103.942719
+2026-03-24 09:31:00-04:00  103.948861
+2026-03-24 09:32:00-04:00  103.955053
+2026-03-24 09:33:00-04:00  103.961294     390 bars in the day
+</pre></div>
+<div><span class="lab">out &mdash; construct_daily_realized_variance()</span>
+<pre>symbol  date        realized_variance  bar_count  realized_volatility  is_complete_session
+AAPL    2026-03-24       1.504150e-06        389             0.001226   True
+AAPL    2026-03-25       1.022484e-06        389             0.001011   True
+AAPL    2026-03-26       3.038023e-06        389             0.001743   True
+AAPL    2026-03-27       3.438199e-07        389             0.000586   True
+AAPL    2026-03-30       4.477872e-06        389             0.002116   True   &lt;- choppiest of the five
+AAPL    2026-03-31       9.499702e-08        389             0.000308   True   &lt;- quietest
+</pre></div>
+</div>
+<p><b>Hand check.</b> The first three minute returns for AAPL on 2026-03-24 are
+5.90903638e-05, 5.95624118e-05 and 6.00342148e-05. Summing the squares of all 389 of them
+by hand gives 1.504149526666387e-06, which is exactly what the function returns.
+Across the whole sample all 60 symbol-days have <code>bar_count = 389</code>, so
+<code>is_complete_session</code> is <code>True</code> everywhere.</p></div>
+
+<div class="box why"><span class="k">Why returns are computed inside the day, not across it</span>
+<p><code>groupby(["symbol", "date"])</code> before <code>.shift(1)</code> means the first bar of
+each day has no previous bar and yields a missing value, which the sum skips. Shifting across the
+whole series instead would create one "return" spanning from 15:59 on Monday to 09:30 on Tuesday.
+That overnight gap is usually the single largest move of the day and would swamp the 389 real
+minute returns, turning a measure of intraday choppiness into a measure of overnight news.</p></div>
+
+<div class="box def"><span class="k">Where 389 comes from</span>
+<p>09:30 to 15:59 inclusive, at one-minute spacing, is 390 timestamps.
+$15{\times}60 + 59 - (9{\times}60 + 30) = 959 - 570 = 389$ gaps between them, so 390 bars produce
+389 returns. <code>is_complete_session</code> flags a day as complete when it has all 389.</p></div>
+
+<div class="box flag"><span class="k">A column nobody reads</span>
+<p><code>is_complete_session</code> is computed here and never used again anywhere in the
+pipeline. The feature stage uses <code>bar_count</code> directly instead. It is not wrong, it is
+just dead weight, and a reader may waste time looking for the filter it implies.</p></div>
+
+<div class="box warn"><span class="k">Trap: the timezone is written twice</span>
+<p><code>"America/New_York"</code> is hard-coded here, but the bar loader took the same timezone
+from <code>manifest.trading_session_timezone</code>. If a manifest ever named a different
+exchange, the loader would filter in that exchange's hours while this function would still cut
+days at New York midnight. The two would disagree and nothing would complain.</p></div>
+
+<h2 id="sec6"><span class="sec-no">06</span>Features and the leakage rule &mdash; <code>build_feature_table</code></h2>
+
+<pre>EPSILON_VARIANCE = 1e-12
+
+FEATURE_COLUMNS = [
+    "current_log_rv",
+    "trailing_5_mean_log_rv",
+    "trailing_5_std_log_rv",
+    "absolute_1day_log_rv_change",
+    "bar_completeness",
+]
+
+def build_feature_table(rv_daily: pd.DataFrame) -&gt; pd.DataFrame:
+    frame = rv_daily.copy()
+    frame["date"] = pd.to_datetime(frame["date"])
+    frame = frame.sort_values(["symbol", "date"]).reset_index(drop=True)
+
+    <span class="c"># Log transform stabilizes scale; clip avoids log(0) on quiet days.</span>
+    clipped_variance = frame["realized_variance"].clip(lower=EPSILON_VARIANCE)
+    frame["log_rv"] = np.log(clipped_variance)
+
+    <span class="c"># The forecast is formed after date d closes, so date-d RV is available.
+    # Names say "current" and "trailing" to make that information cutoff explicit.</span>
+    frame["current_log_rv"] = frame["log_rv"]
+    frame["trailing_5_mean_log_rv"] = frame.groupby("symbol")["log_rv"].transform(
+        lambda values: values.rolling(5).mean()
+    )
+    frame["trailing_5_std_log_rv"] = frame.groupby("symbol")["log_rv"].transform(
+        lambda values: values.rolling(5).std()
+    )
+    frame["absolute_1day_log_rv_change"] = frame.groupby("symbol")["log_rv"].transform(
+        lambda values: values.diff().abs()
+    )
+    frame["bar_completeness"] = frame["bar_count"] / float(EXPECTED_BAR_RETURNS_PER_DAY)
+
+    <span class="c"># Target is next-day log RV; rows without a realized next day are dropped below.</span>
+    frame["feature_date"] = frame["date"]
+    frame["target_date"] = frame.groupby("symbol")["date"].shift(-1)
+    frame["target_log_rv_next_day"] = frame.groupby("symbol")["log_rv"].shift(-1)
+
+    required_columns = FEATURE_COLUMNS + ["target_log_rv_next_day", "target_date"]
+    feature_table = frame.dropna(subset=required_columns).copy()
+    ...</pre>
+
+<div class="box gist"><span class="k">In plain words</span>
+<p>Takes the daily choppiness numbers, puts them on a log scale, and for each stock and each day
+builds five summaries of what was known by the closing bell &mdash; plus the answer it is trying
+to predict, which is the next day's number.</p></div>
+
+<div class="box def"><span class="k">What it does</span>
+<p><b>Input:</b> the 60-row daily realized-variance table.
+<b>Output:</b> 30 rows with <code>symbol</code>, <code>feature_date</code>, <code>target_date</code>,
+the five feature columns, and <code>target_log_rv_next_day</code>.
+<b>Role:</b> defines exactly what the models are allowed to know and what they must guess.</p></div>
+
+<div class="box def"><span class="k">The formula</span>
+<p>Log target, with a floor to keep the logarithm finite on a perfectly flat day:</p>
+<p>$$y_{i,d} = \log\!\big(\max(RV_{i,d},\ \varepsilon)\big), \qquad \varepsilon = 10^{-12}$$</p>
+<p>The five features for symbol $i$ at feature date $d$:</p>
+<p>$$
+\begin{aligned}
+x^{(1)}_{i,d} &amp;= y_{i,d} \\[2pt]
+x^{(2)}_{i,d} &amp;= \frac{1}{5}\sum_{k=0}^{4} y_{i,d-k} \\[2pt]
+x^{(3)}_{i,d} &amp;= \sqrt{\frac{1}{4}\sum_{k=0}^{4}\big(y_{i,d-k}-x^{(2)}_{i,d}\big)^{2}} \\[2pt]
+x^{(4)}_{i,d} &amp;= \big|\,y_{i,d}-y_{i,d-1}\,\big| \\[2pt]
+x^{(5)}_{i,d} &amp;= \frac{n_{i,d}}{389}
+\end{aligned}
+$$
+</p>
+<p>and the label the models must predict:</p>
+<p>$$\text{target}_{i,d} = y_{i,d+1}$$</p>
+<p class="fnote">$RV_{i,d}$ is the realized variance from section 05. $y_{i,d}$ is its natural
+logarithm, a pure number, typically near $-14$ on this data. $\varepsilon$ is the floor
+<code>EPSILON_VARIANCE</code>. $x^{(1)}$ is today's level, $x^{(2)}$ the five-day average,
+$x^{(3)}$ the five-day sample standard deviation (dividing by $5-1=4$, which is what pandas'
+<code>rolling(5).std()</code> does by default), $x^{(4)}$ the size of yesterday-to-today's move
+regardless of direction, and $x^{(5)}$ the share of the 389 expected minute returns actually
+present. $d-k$ means the $k$-th earlier <i>row</i> for that symbol, which is the $k$-th earlier
+trading date, not the calendar date minus $k$ days. $d+1$ likewise means the next trading date
+for that symbol.</p></div>
+
+<div class="box data"><span class="k">Sample data</span>
+<div class="io stack">
+<div><span class="lab">in &mdash; AAPL log realized variance, first five days</span>
+<pre>2026-03-24  -13.407283
+2026-03-25  -13.793275
+2026-03-26  -12.704303
+2026-03-27  -14.883148
+2026-03-30  -12.316363   &lt;- feature date d</pre></div>
+<div><span class="lab">out &mdash; feature row for AAPL, feature_date 2026-03-30</span>
+<pre>feature_date                 2026-03-30
+target_date                  2026-03-31
+current_log_rv               -12.316363
+trailing_5_mean_log_rv       -13.420874
+trailing_5_std_log_rv          1.001315
+absolute_1day_log_rv_change    2.566785
+bar_completeness               1.000000
+target_log_rv_next_day       -16.169420</pre></div>
+</div>
+<p><b>Hand check.</b> The mean of the five values on the left is
+$(-13.407283-13.793275-12.704303-14.883148-12.316363)/5 = -13.420874$, which matches
+<code>trailing_5_mean_log_rv</code> exactly. And
+$|-12.316363-(-14.883148)| = 2.566785$ matches <code>absolute_1day_log_rv_change</code>.
+The target $-16.169420$ is AAPL's log realized variance on 2026-03-31, the next trading date.</p>
+<p><b>Whole sample.</b> 60 daily rows become 30 feature rows: five feature dates
+(2026-03-30 through 2026-04-03) times six symbols. The first four dates are lost to the
+five-day rolling window and the last date is lost because it has no following day to label it.</p></div>
+
+<div class="box why"><span class="k">Why work in logs at all</span>
+<p>Realized variance on this data ranges from about $9.5 \times 10^{-8}$ to
+$4.5 \times 10^{-6}$ &mdash; a factor of about 47 between the quiet days and the choppy ones,
+and always positive. Fitting a straight line to numbers like that lets one busy day dominate the
+whole fit, and the fitted line can predict a negative variance, which is impossible. On the log
+scale the same range becomes roughly $-16.2$ to $-12.3$, well behaved for a linear model, and
+exponentiating any prediction gives back a positive variance.</p></div>
+
+<div class="box why"><span class="k">Why the naming is the leakage control</span>
+<p>The forecast is made <b>after</b> date $d$'s closing bell. At that moment date $d$'s realized
+variance is already measured, so using it is not cheating &mdash; hence <code>current_log_rv</code>
+rather than a lag. The word <code>trailing</code> in the rolling columns says the window ends at
+$d$ and never reaches past it. The one thing not known at that moment is $y_{i,d+1}$, which is why
+it is the target and appears in no feature.</p></div>
+
+<div class="box warn"><span class="k">Trap: "next day" is not "tomorrow"</span>
+<p><code>shift(-1)</code> takes the next <i>row</i> for that symbol. Over the Friday
+2026-04-03 to Monday 2026-04-06 weekend it produces a three-calendar-day gap, and after a
+holiday or a missing file it could be longer still. That is why <code>target_date</code> is
+carried as its own column instead of being reconstructed as <code>feature_date + 1 day</code>:
+the modelling stage needs the real date to decide what was knowable when.</p></div>
+
+<div class="box flag"><span class="k">A feature that cannot help</span>
+<p><code>bar_completeness</code> equals exactly 1.0 in all 30 rows, because every session in
+the tracked payload is complete. A column with no variation carries no information; section 07
+shows the ridge model duly gives it a weight of exactly zero. It would matter on messier data,
+but on this data it is a placeholder.</p></div>
+
+<h2 id="sec7"><span class="sec-no">07</span>Walk-forward training &mdash; <code>build_walk_forward_predictions</code></h2>
+
+<pre>BASELINE_FEATURE_COLUMNS: dict[str, str] = {
+    "persistence": "current_log_rv",
+    "rolling_mean": "trailing_5_mean_log_rv",
+}
+
+    <span class="c"># Expand one forecast-origin date at a time. A training label is eligible only
+    # when its target has been observed by the test date's post-close cutoff.</span>
+    for date_index in range(min_train_dates, len(unique_dates)):
+        test_date = unique_dates[date_index]
+        train_frame = frame[
+            (frame["feature_date"] &lt; test_date) &amp; (frame["target_date"] &lt;= test_date)
+        ].copy()
+        test_frame = frame[frame["feature_date"] == test_date].copy()
+        eligible_train_dates = sorted(train_frame["feature_date"].unique())
+        if len(eligible_train_dates) &lt; min_train_dates or test_frame.empty:
+            continue
+
+        for model_name, feature_column in BASELINE_FEATURE_COLUMNS.items():
+            baseline_predictions = test_frame[feature_column].to_numpy(dtype=float)
+            _append_prediction_rows(...)
+
+        train_x = train_frame.loc[:, FEATURE_COLUMNS].to_numpy(dtype=float)
+        train_y = train_frame["target_log_rv_next_day"].to_numpy(dtype=float)
+        test_x = test_frame.loc[:, FEATURE_COLUMNS].to_numpy(dtype=float)
+
+        train_x_scaled, test_x_scaled = _standardize(
+            train_values=train_x, test_values=test_x
+        )
+
+        ridge_model = Ridge(alpha=ridge_alpha)
+        ridge_model.fit(train_x_scaled, train_y)
+        ridge_predictions = ridge_model.predict(test_x_scaled)</pre>
+
+<div class="box gist"><span class="k">In plain words</span>
+<p>Steps forward one day at a time. On each step it takes everything that was already known and
+already checkable on that evening, fits the model to it, and makes one forecast per stock for
+the next day. It never looks at a day it has not reached yet.</p></div>
+
+<div class="box def"><span class="k">What it does</span>
+<p><b>Input:</b> the 30-row feature table, plus <code>min_train_dates</code> and
+<code>ridge_alpha</code> from the config file.
+<b>Output:</b> two frames &mdash; <code>predictions</code> (one row per model, symbol and forecast
+date) and <code>coefficients</code> (the ridge intercept and five weights per training window).
+<b>Role:</b> the actual experiment. Everything before it prepares data; everything after it scores.</p></div>
+
+<div class="box def"><span class="k">The three forecasting rules</span>
+<p>For symbol $i$ and forecast origin $d$, each rule produces a guess $\hat{y}_{i,d+1}$ of the
+next day's log realized variance:</p>
+<p>$$
+\begin{aligned}
+\text{persistence:} \quad &amp;\hat{y}_{i,d+1} = x^{(1)}_{i,d} = y_{i,d} \\[3pt]
+\text{rolling mean:} \quad &amp;\hat{y}_{i,d+1} = x^{(2)}_{i,d} = \frac{1}{5}\sum_{k=0}^{4} y_{i,d-k} \\[3pt]
+\text{ridge:} \quad &amp;\hat{y}_{i,d+1} = b + \sum_{j=1}^{5} \beta_j \tilde{x}^{(j)}_{i,d}
+\end{aligned}
+$$
+</p>
+<p class="fnote">$y_{i,d}$ and $x^{(j)}_{i,d}$ are exactly the quantities defined in section 06.
+$\tilde{x}^{(j)}$ is the standardized version of feature $j$, defined just below.
+$b$ is the fitted intercept and $\beta_j$ the fitted weight on feature $j$. The two baselines fit
+nothing: they simply read one column straight off the test row.</p></div>
+
+<div class="box def"><span class="k">The formula: standardizing, then ridge</span>
+<p>Each feature is centred and rescaled using <b>only the training window's</b> mean and standard
+deviation:</p>
+<p>$$\tilde{x}^{(j)} = \frac{x^{(j)} - \mu^{(j)}_{\text{train}}}{\sigma^{(j)}_{\text{train}}},
+\qquad \sigma^{(j)}_{\text{train}} \leftarrow 1 \ \text{ if } \ \sigma^{(j)}_{\text{train}} = 0$$</p>
+<p>Ridge regression then picks the intercept and weights that minimise squared error plus a
+penalty on the size of the weights:</p>
+<p>$$\min_{b,\ \beta}\ \sum_{m=1}^{N}\Big(y_m - b - \sum_{j=1}^{5}\beta_j \tilde{x}^{(j)}_m\Big)^{2}
+\ +\ \alpha \sum_{j=1}^{5} \beta_j^{2}$$</p>
+<p class="fnote">$\mu^{(j)}_{\text{train}}$ and $\sigma^{(j)}_{\text{train}}$ are the mean and
+standard deviation of feature $j$ over the training rows only (population standard deviation,
+dividing by $N$, which is what <code>numpy</code>'s <code>.std()</code> does by default).
+$N$ is the number of training rows, $m$ indexes them, $y_m$ is that row's true next-day log
+realized variance. $\alpha$ is <code>ridge_alpha</code> from the config file, set to 1.0.
+The intercept $b$ is <b>not</b> penalised, which is why standardizing matters: the penalty treats
+all five weights on the same footing only if the features share a scale.</p></div>
+
+<div class="box data"><span class="k">Sample data</span>
+<div class="io stack">
+<div><span class="lab">in &mdash; the single scored forecast origin</span>
+<pre>feature dates available : 2026-03-30, 03-31, 04-01, 04-02, 04-03  (5 dates x 6 symbols = 30 rows)
+min_train_dates         : 4
+loop range              : date_index 4 .. 4     -&gt; one test date only
+
+test_date               : 2026-04-03
+train rows              : 24   (feature_date &lt; 2026-04-03 and target_date &lt;= 2026-04-03)
+test rows               : 6    (one per symbol)</pre></div>
+<div><span class="lab">out &mdash; predictions (18 rows) and coefficients (6 rows)</span>
+<pre>model_name   symbol feature_date target_date  actual   prediction
+persistence  AAPL   2026-04-03   2026-04-06  -16.1336   -14.3687
+persistence  CVX    2026-04-03   2026-04-06  -14.4131   -13.2405
+rolling_mean AAPL   2026-04-03   2026-04-06  -16.1336   -14.0176
+ridge        AAPL   2026-04-03   2026-04-06  -16.1336   -14.8554
+ridge        CVX    2026-04-03   2026-04-06  -14.4131   -15.2747
+
+train_end_date  feature_name                  coefficient
+2026-04-02      intercept                      -14.442776
+2026-04-02      current_log_rv                  -0.713194
+2026-04-02      trailing_5_mean_log_rv           0.687430
+2026-04-02      trailing_5_std_log_rv            0.942091
+2026-04-02      absolute_1day_log_rv_change      0.393373
+2026-04-02      bar_completeness                 0.000000   &lt;- constant feature, zero weight</pre></div>
+</div>
+<p>3 models x 6 symbols x 1 scored date = 18 prediction rows. The intercept
+$-14.4428$ is the average training target, because standardized features have mean zero.
+<code>bar_completeness</code> gets a weight of exactly 0.000000: it is 1.0 in every training row,
+so its standard deviation is zero, <code>_standardize</code> replaces the divisor with 1.0, and
+$(1.0 - 1.0)/1.0 = 0$ makes the whole column zeros, which ridge cannot use.</p></div>
+
+<div class="box why"><span class="k">Why two conditions on the training filter, not one</span>
+<p><code>feature_date &lt; test_date</code> alone would be the usual walk-forward rule. The second
+condition, <code>target_date &lt;= test_date</code>, handles the case where a symbol's next
+observation is far away. Imagine a row with feature date 2026-04-01 whose next observation for
+that symbol is 2026-04-08 because of a data gap. Its label is a fact about 2026-04-08. Training
+on it while forecasting from 2026-04-03 would feed the model an outcome nobody could have known
+&mdash; classic look-ahead. The second condition drops it.
+<code>tests/test_modeling_pipeline.py</code> checks precisely this with a fabricated gap.</p></div>
+
+<div class="box why"><span class="k">Why the scaling moments come from the training window only</span>
+<p><code>_standardize</code> computes the mean and standard deviation from <code>train_values</code>
+and applies them to both matrices. Computing them over the combined data would let the test row's
+own level leak into the numbers used to fit &mdash; a subtle form of look-ahead that inflates
+results without ever touching the label.</p></div>
+
+<div class="box warn"><span class="k">Trap: the warm-up is counted twice, and differently</span>
+<p><code>range(min_train_dates, len(unique_dates))</code> uses <code>min_train_dates</code> as a
+<i>position</i> in the date list. The check
+<code>len(eligible_train_dates) &lt; min_train_dates</code> then uses it as a <i>count</i> of dates
+that survived purging. The two agree only when no rows are purged. When a gap removes a date, the
+loop reaches a candidate origin whose eligible training set is too small and skips it with
+<code>continue</code>, which is the correct behaviour but reads as a redundant check until you
+work through the gap case.</p></div>
+
+<div class="box warn"><span class="k">Trap: <code>min_train_dates</code> has a real cliff</span>
+<p>The tracked data has five feature dates. Set <code>min_train_dates</code> to 5 or more in
+<code>config.toml</code> and the loop body never executes, producing zero predictions. That used
+to surface as a confusing <code>KeyError: 'model_name'</code> inside the metrics step; the
+pipeline now raises a clear message instead. See <a href="#fixes">Fixes applied</a>.</p></div>
+
+<div class="box flag"><span class="k">The stated honest weakness</span>
+<p>One scored date. Six forecasts. The six are all US large-cap stocks on the same day, so they
+share the same market move and are nowhere near six independent observations. Any ranking of the
+three models here is noise. <code>docs/reference/assumptions.md</code> says this in as many words,
+and it is the right call to say it rather than dress the numbers up.</p></div>
+
+<h2 id="sec8"><span class="sec-no">08</span>Scoring &mdash; <code>compute_model_metrics</code></h2>
+
+<pre>    for model_name, group in predictions.groupby("model_name"):
+        scored_group = group.merge(
+            persistence_rows,
+            on=observation_columns,
+            how="inner",
+            validate="one_to_one",
+        )
+        if len(scored_group.index) != len(group.index):
+            raise ValueError(
+                f"Model {model_name!r} does not share every row with persistence"
+            )
+
+        residual_values = actual_values - predicted_values
+        persistence_residual_values = actual_values - persistence_values
+
+        rmse_value = float(np.sqrt(np.square(residual_values).mean()))
+        mae_value = float(np.abs(residual_values).mean())
+        model_sse = float(np.square(residual_values).sum())
+        persistence_sse = float(np.square(persistence_residual_values).sum())
+        skill_value = (
+            0.0
+            if persistence_sse == 0.0 and model_sse == 0.0
+            else float(1.0 - model_sse / persistence_sse)
+        )</pre>
+
+<div class="box gist"><span class="k">In plain words</span>
+<p>For each model it measures how far the forecasts were from the truth, then asks the only
+question that matters: was it better or worse than simply saying "tomorrow equals today"?</p></div>
+
+<div class="box def"><span class="k">What it does</span>
+<p><b>Input:</b> the prediction frame.
+<b>Output:</b> a nested dictionary, model name to <code>{rmse, mae, skill_vs_persistence}</code>,
+written straight to <code>metrics.json</code>.
+<b>Role:</b> the project's headline answer.</p></div>
+
+<div class="box def"><span class="k">The formula</span>
+<p>Write $e_m = y_m - \hat{y}_m$ for the error on forecast row $m$, over $N$ scored rows:</p>
+<p>$$\text{RMSE} = \sqrt{\frac{1}{N}\sum_{m=1}^{N} e_m^{2}}, \qquad
+\text{MAE} = \frac{1}{N}\sum_{m=1}^{N} \big|e_m\big|$$</p>
+<p>Forecast skill compares a model's total squared error against persistence's, on exactly the
+same rows:</p>
+<p>$$\text{skill}_M = 1 - \frac{SSE_M}{SSE_P},
+\qquad SSE_M = \sum_{m=1}^{N}\big(y_m - \hat{y}^{M}_m\big)^{2}$$</p>
+<p class="fnote">$y_m$ is the true next-day log realized variance for row $m$; $\hat{y}_m$ is the
+forecast. RMSE stands for root mean squared error and MAE for mean absolute error; both are in
+log-variance units, so a value of 1.0 means the forecast was off by a factor of $e \approx 2.72$
+in variance terms. $SSE$ stands for sum of squared errors. $SSE_M$ uses model $M$'s forecasts and
+$SSE_P$ persistence's. Skill is $0$ for persistence itself by construction, positive when a model
+beats persistence, and negative when it is worse. It has no upper bound below 1 and no lower bound
+above minus infinity.</p></div>
+
+<div class="box data"><span class="k">Sample data</span>
+<div class="io">
+<div><span class="lab">in &mdash; sums of squared errors, N = 6</span>
+<pre>persistence   SSE = 10.138489
+rolling_mean  SSE = 15.431200
+ridge         SSE =  8.497269</pre></div>
+<div><span class="lab">out &mdash; outputs/demo_run/metrics.json</span>
+<pre>{
+  "persistence": {
+    "rmse": 1.299903,
+    "mae":  1.209104,
+    "skill_vs_persistence": 0.0
+  },
+  "ridge": {
+    "rmse": 1.190047,
+    "mae":  1.088602,
+    "skill_vs_persistence": 0.161880   &lt;- beat persistence
+  },
+  "rolling_mean": {
+    "rmse": 1.603704,
+    "mae":  1.426659,
+    "skill_vs_persistence": -0.522041  &lt;- worse
+  }
+}</pre></div>
+</div>
+<p><b>Hand check.</b> Ridge skill $= 1 - 8.497269/10.138489 = 0.161880$, matching the file.
+Persistence RMSE $= \sqrt{10.138489/6} = 1.299903$, also matching. These six numbers come from a
+single forecast date; see the limitations section before reading anything into them.</p></div>
+
+<div class="box why"><span class="k">Why persistence is the denominator</span>
+<p>An earlier version of this code scored models against the average of the held-out outcomes.
+That average is not knowable at forecast time, so it is not a benchmark anyone could have traded
+against &mdash; it flatters any model that merely predicts near the sample mean. Persistence is
+something a person could actually have done on the day, so beating it is a real claim. The change
+is recorded in <code>GUIDE_evaluation.md</code>'s journal.</p></div>
+
+<div class="box why"><span class="k">Why the merge is so strict</span>
+<p><code>validate="one_to_one"</code> plus the row-count equality check means a model is scored
+only if it forecast <b>exactly</b> the same symbol-and-date rows as persistence, no more and no
+fewer. Without it, a model that quietly skipped its hardest days would show a flattering skill
+number computed against a different, easier denominator.</p></div>
+
+<div class="box warn"><span class="k">Trap: one branch of the skill guard is missing</span>
+<p>The guard returns 0.0 only when <b>both</b> sums of squared errors are zero. If persistence is
+perfect ($SSE_P = 0$) while the model is not, the expression divides a positive float by 0.0 and
+raises <code>ZeroDivisionError</code>. It needs a forecast that is right to the last floating-point
+bit, so it will not happen on real data, but it is a genuine hole rather than a handled case.</p></div>
+
+<h2 id="sec9"><span class="sec-no">09</span>Charts &mdash; <code>write_diagnostic_figures</code></h2>
+
+<div class="box gist"><span class="k">In plain words</span>
+<p>Writes four PNG files: the average daily choppiness over time, ridge forecasts against what
+actually happened, a histogram of the misses, and a bar chart of the fitted weights.</p></div>
+
+<div class="box def"><span class="k">What it does</span>
+<p><b>Input:</b> the daily realized-variance table, the predictions, the coefficients, and a
+destination folder.
+<b>Output:</b> <code>realized_variance_history.png</code>, <code>prediction_vs_actual.png</code>,
+<code>residual_distribution.png</code>, <code>coefficient_bar_chart.png</code>.
+<b>Role:</b> the eyeball check. It returns nothing; the files are the product.</p></div>
+
+<div class="box why"><span class="k">Why every figure goes through <code>_save_figure</code></span>
+<p>It saves and then calls <code>plt.close(figure)</code>. Matplotlib keeps every figure alive in
+a global registry until it is closed, so a loop that builds figures without closing them leaks
+memory and eventually prints a warning about too many open figures. Routing all four through one
+helper makes forgetting impossible.</p></div>
+
+<div class="box warn"><span class="k">Trap the code used to fall into</span>
+<p>Six symbols share the same forecast date, so consecutive rows of the prediction frame are
+<b>different stocks</b>, not successive points in time. Drawing them with a line chart invented a
+path between unrelated observations and rendered as a single vertical stripe. It now plots
+markers only. See <a href="#fixes">Fixes applied</a>.</p></div>
+
+<div class="box flag"><span class="k">Still not a good chart</span>
+<p>With one forecast date, matplotlib's automatic date axis pads out to roughly a four-year span
+around that single point, so the markers huddle in the middle of an almost empty plot. The fix
+is more scored dates, not more plotting code. A predicted-against-actual scatter, with forecast
+on one axis and outcome on the other, would be the more informative chart at this sample size.</p></div>
+
+<h2 id="sec10"><span class="sec-no">10</span>Wiring it together &mdash; <code>run_offline_demo</code> and the CLI</h2>
+
+<pre>def run_offline_demo(output_directory: Path) -&gt; None:
+    config = load_app_config()
+
+    manifest = load_raw_manifest(raw_root=config.raw_root)
+    raw_bars = load_raw_intraday_bars(raw_root=config.raw_root, manifest=manifest)
+    rv_daily = construct_daily_realized_variance(bars=raw_bars)
+    feature_table = build_feature_table(rv_daily=rv_daily)
+
+    <span class="c"># Warm-up length and ridge strength are tunable in app/config.toml. The demo
+    # default is a short warm-up so the run fits the tracked sample size.</span>
+    predictions, coefficients = build_walk_forward_predictions(
+        feature_table=feature_table,
+        min_train_dates=config.min_train_dates,
+        ridge_alpha=config.ridge_alpha,
+    )
+
+    <span class="c"># An over-long warm-up leaves no scored date. Say so here rather than letting
+    # the metrics step fail on a missing column of an empty table.</span>
+    if predictions.empty:
+        raise ValueError(
+            "Walk-forward produced no out-of-sample predictions. "
+            f"min_train_dates={config.min_train_dates} exceeds the "
+            f"{feature_table['feature_date'].nunique()} feature dates available."
+        )
+
+    metrics_payload = compute_model_metrics(predictions=predictions)
+
+    output_directory.mkdir(parents=True, exist_ok=True)
+    figures_directory = output_directory / "figures"
+    write_diagnostic_figures(...)
+
+    (output_directory / "metrics.json").write_text(
+        json.dumps(metrics_payload, indent=2),
+        encoding="utf-8",
+    )
+    predictions.to_parquet(output_directory / "predictions.parquet", index=False)
+    coefficients.to_csv(output_directory / "coefficients.csv", index=False)</pre>
+
+<div class="box gist"><span class="k">In plain words</span>
+<p>Calls the six stages in order, checks that the experiment actually produced something, then
+writes the scores, the forecasts, the weights and the charts to a folder.</p></div>
+
+<div class="box def"><span class="k">What it does</span>
+<p><b>Input:</b> one destination folder.
+<b>Output:</b> nothing returned; four files plus a <code>figures/</code> subfolder on disk.
+<b>Role:</b> the whole project in twenty lines. This is the file to read first.</p></div>
+
+<div class="box why"><span class="k">Why no stage keeps state</span>
+<p>Every stage is a plain function taking frames and returning frames. Nothing is stored on an
+object between calls, so the notebook can call exactly the same functions in exactly the same
+order and get the same answer, and a test can call any single stage with a fabricated frame.
+That is why <code>tests/</code> can check the realized-variance formula against four hand-written
+bars without touching the file system.</p></div>
+
+<div class="box def"><span class="k">What the CLI adds</span>
+<p><code>cli.py</code> is thin on purpose: build an argument parser, pick the output directory,
+call <code>run_offline_demo</code>, print where the files went, return an exit code.
+<code>--output-dir</code> is resolved with <code>Path(...).resolve()</code>, which is relative to
+<b>your current shell directory</b>, while the default from the config file is relative to the
+project root. The two behave differently on purpose: a path you typed should mean what you meant.</p></div>
+
+<div class="box warn"><span class="k">Trap: <code>outputs/</code> is not tracked</span>
+<p><code>.gitignore</code> excludes <code>outputs/</code> and <code>logs/</code>. Artifacts from a
+run are local only; a fresh clone has no <code>outputs/demo_run</code> until you run the demo.
+That is deliberate, but it means charts you are looking at may be stale relative to the code.</p></div>
+
+<h2 id="fixes"><span class="sec-no">11</span>Fixes applied</h2>
+
+<p>Four defects were found while reading and were fixed. Nothing else was changed: no
+restructuring, no renaming, no style edits.</p>
+
+<div class="scroll">
+<table>
+<thead><tr><th>File</th><th>Defect</th><th>Fix</th><th>Evidence it works</th></tr></thead>
+<tbody>
+<tr>
+  <td><code>pipeline/run_offline_demo.py</code>, <code>app/config.py</code>, <code>app/config.toml</code></td>
+  <td><span class="chip c-bug">config</span> <code>min_train_dates=4</code> and
+  <code>ridge_alpha=1.0</code> were typed straight into the call site as bare numbers, even though
+  the project already has a <code>config.toml</code>. Changing the warm-up or the regularisation
+  meant editing source code.</td>
+  <td>Added a <code>[modeling]</code> section to <code>config.toml</code> with a comment on each
+  option, added the two fields to <code>AppConfig</code>, and read them in the pipeline.</td>
+  <td>The demo still produces the same 18 predictions and the same
+  <code>skill_vs_persistence = 0.161880</code>, so the default behaviour is unchanged.</td>
+</tr>
+<tr>
+  <td><code>pipeline/run_offline_demo.py</code></td>
+  <td><span class="chip c-drop">obscure failure</span> A <code>min_train_dates</code> larger than
+  the number of available feature dates produced an empty prediction frame, which then failed
+  inside the metrics step with <code>KeyError: 'model_name'</code> &mdash; a message that points
+  at the wrong file.</td>
+  <td>Added an explicit emptiness check right after the walk-forward call, raising a
+  <code>ValueError</code> that names the setting and the number of dates available.</td>
+  <td>Temporarily setting <code>min_train_dates = 9</code> now raises: <i>"Walk-forward produced
+  no out-of-sample predictions. min_train_dates=9 exceeds the 5 feature dates available."</i></td>
+</tr>
+<tr>
+  <td><code>evaluation/diagnostics.py</code></td>
+  <td><span class="chip c-veto">misleading chart</span> <code>prediction_vs_actual.png</code> drew
+  a <b>line</b> through rows sorted by target date. Six different symbols share each date, so the
+  line connected unrelated observations and rendered as a single vertical stripe.</td>
+  <td>Switched both series to markers only (<code>linestyle="none"</code>, circles for actual and
+  crosses for predicted), and made the sort deterministic by adding <code>symbol</code> as a
+  tiebreaker.</td>
+  <td>Regenerated the figure: twelve distinct markers where there was previously one stripe.</td>
+</tr>
+<tr>
+  <td><code>app/cli.py</code></td>
+  <td><span class="chip c-never">latent</span> <code>run_selected_command</code> is annotated
+  <code>-&gt; int</code>, but the <code>build-raw-manifest</code> branch returned a value only from
+  inside its <code>except</code> block. If the call ever stopped raising, the function would fall
+  off the end returning <code>None</code>, and <code>SystemExit(None)</code> means exit code
+  <b>0</b> &mdash; a failing command reporting success.</td>
+  <td>Moved the <code>return 1</code> outside the <code>except</code> block so the branch always
+  returns a failure code.</td>
+  <td><code>build-raw-manifest</code> still prints its message and exits 1; the CLI test that
+  asserts a non-zero exit code still passes.</td>
+</tr>
+</tbody>
+</table>
+</div>
+
+<p class="fnote">All 15 tests pass before and after. Several other things noted on this page were
+deliberately <b>not</b> changed, because they are design smells rather than live defects: the
+duplicated session window and timezone, the unused <code>is_complete_session</code> column, the
+silently-skipped missing symbol, and the divide-by-zero branch in the skill guard. Each is
+described in the sections above and in the table below.</p>
+
+<h2 id="callgraph"><span class="sec-no">12</span>Call graph</h2>
+
+<pre>cli.main()
+ └─ cli.run_selected_command(args)
+     ├─ app.config.load_app_config()                      reads app/config.toml
+     ├─ pipeline.run_offline_demo(output_directory)       [run-offline-demo]
+     │   ├─ app.config.load_app_config()
+     │   ├─ data_access.raw_manifest.load_raw_manifest(raw_root)
+     │   ├─ data_access.raw_bars.load_raw_intraday_bars(raw_root, manifest)
+     │   │   └─ data_access.raw_bars.discover_raw_parquet_paths(raw_root, symbols)
+     │   ├─ realized_variance.construct.construct_daily_realized_variance(bars)
+     │   │   ├─ _sum_squared_log_returns(log_returns)     per symbol-day
+     │   │   └─ _non_missing_log_return_count(log_returns)
+     │   ├─ features.build_features.build_feature_table(rv_daily)
+     │   ├─ modeling.train.build_walk_forward_predictions(feature_table,
+     │   │   │                                            min_train_dates, ridge_alpha)
+     │   │   ├─ _standardize(train_values, test_values)   once per forecast origin
+     │   │   ├─ sklearn.linear_model.Ridge.fit / .predict
+     │   │   ├─ _append_prediction_rows(...)              3 times per origin
+     │   │   └─ _append_ridge_coefficient_rows(...)       once per origin
+     │   ├─ evaluation.metrics.compute_model_metrics(predictions)
+     │   └─ evaluation.diagnostics.write_diagnostic_figures(rv_daily, predictions,
+     │       │                                              coefficients, figures_dir)
+     │       └─ _save_figure(figure, output_path)         4 times
+     └─ data_access.clickhouse_extract.raise_optional_clickhouse_message()
+                                                          [build-raw-manifest] always raises</pre>
+
+<p class="fnote">Indentation is "calls". The notebook
+<code>notebooks/intraday_variance_walkthrough.ipynb</code> enters the same tree from the middle,
+calling <code>load_raw_manifest</code> onwards directly, then <code>run_offline_demo</code> at the
+end. <code>blog/generate_charts.py</code> uses only <code>load_app_config</code>.</p>
+
+<h2 id="edge"><span class="sec-no">13</span>Edge cases</h2>
+
+<div class="scroll">
+<table>
+<thead><tr><th>Situation</th><th>What would go wrong</th><th>What handles it</th></tr></thead>
+<tbody>
+<tr><td>Realized variance is exactly zero on a flat day</td><td><code>log(0)</code> is minus infinity and poisons every rolling statistic downstream</td><td><span class="pass">Handled.</span> <code>clip(lower=EPSILON_VARIANCE)</code> floors it at $10^{-12}$ before the logarithm</td></tr>
+<tr><td>The first bar of a trading day</td><td>Has no previous bar; a naive shift would create an overnight return that dwarfs every intraday one</td><td><span class="pass">Handled.</span> <code>groupby(["symbol","date"])</code> before <code>shift(1)</code>, and the sum skips missing values</td></tr>
+<tr><td>Daylight saving time change</td><td>The session sits at 13:30 UTC in summer and 14:30 UTC in winter; a UTC-clock filter would cut the wrong hour</td><td><span class="pass">Handled.</span> Filtering converts to <code>America/New_York</code> first</td></tr>
+<tr><td>Weekend or holiday between two rows</td><td>"Next day" is three calendar days later, so a fixed +1-day rule would find no label</td><td><span class="pass">Handled.</span> <code>shift(-1)</code> takes the next observed row and stores the real <code>target_date</code></td></tr>
+<tr><td>A symbol has a data gap, so its label lands after the forecast date</td><td>Look-ahead: the model trains on an outcome nobody could have known yet</td><td><span class="pass">Handled.</span> <code>target_date &lt;= test_date</code> purges it; a dedicated test proves it</td></tr>
+<tr><td>A feature is constant across the training window</td><td>Standardizing divides by zero, producing infinities that break the fit</td><td><span class="pass">Handled.</span> <code>_standardize</code> replaces a zero divisor with 1.0, giving an all-zero column</td></tr>
+<tr><td>A model forecasts a different set of rows than persistence</td><td>Skill compares two different denominators and looks better than it is</td><td><span class="pass">Handled.</span> <code>validate="one_to_one"</code> plus an explicit row-count equality check</td></tr>
+<tr><td><code>min_train_dates</code> exceeds the dates available</td><td>Empty prediction frame, then a <code>KeyError</code> pointing at the wrong module</td><td><span class="pass">Handled</span> by this session's fix: an explicit <code>ValueError</code> naming the setting</td></tr>
+<tr><td>Persistence is perfect but the model is not</td><td><code>1 - SSE_M / 0.0</code> raises <code>ZeroDivisionError</code></td><td><span class="failw">Not handled.</span> The guard covers only the both-zero case. Needs bit-exact forecasts, so it is theoretical</td></tr>
+<tr><td>A symbol in the manifest has no folder on disk</td><td>The run silently uses five symbols instead of six</td><td><span class="failw">Not handled.</span> <code>discover_raw_parquet_paths</code> raises only if <b>all</b> symbols are missing</td></tr>
+<tr><td>The manifest says the session is 09:30&ndash;16:00</td><td>The loader keeps 09:30&ndash;15:59 regardless</td><td><span class="failw">Not handled.</span> The window is a module constant; only the timezone is read from the manifest</td></tr>
+<tr><td>A parquet file is missing one required column</td><td>Every later stage fails on a missing column</td><td><span class="pass">Handled loudly.</span> <code>bars.loc[:, manifest.required_columns]</code> raises a <code>KeyError</code> naming the column</td></tr>
+</tbody>
+</table>
+</div>
+
+<h2 id="traps"><span class="sec-no">14</span>Gotchas and traps</h2>
+
+<div class="scroll">
+<table>
+<thead><tr><th>What you see</th><th>What it really means</th><th>The trap</th></tr></thead>
+<tbody>
+<tr><td><code>current_log_rv</code> is a feature, not a lag</td><td>The forecast is made after the close, so today's realized variance is already measured</td><td>Reads like leakage at a glance. It is not &mdash; but only because the forecast origin is post-close. Move the origin to mid-session and this feature becomes cheating</td></tr>
+<tr><td><code>rolling(5)</code> includes the current row</td><td>The window is days $d-4$ through $d$</td><td>Same point: legitimate post-close, illegitimate intraday</td></tr>
+<tr><td><code>parents[3]</code> in <code>config.py</code></td><td>Four levels up from <code>app/config.toml</code> is the project root</td><td>Silently wrong if the file is ever moved between folders</td></tr>
+<tr><td><code>bar_completeness</code> weight of exactly 0.0</td><td>The column is constant, so standardizing turns it into zeros</td><td>Easy to read as "the model decided this feature does not matter". The model was never given the chance</td></tr>
+<tr><td><code>skill_vs_persistence</code> of 0.16</td><td>Ridge's squared error was 16% lower than persistence's on six rows from one day</td><td>Six correlated forecasts from a single date. Not a result</td></tr>
+<tr><td>RMSE of about 1.2</td><td>Errors are in log-variance units</td><td>An error of 1.2 in logs is a factor of $e^{1.2}\approx 3.3$ in variance. The numbers look small only because logs compress</td></tr>
+<tr><td><code>build-raw-manifest</code> always fails</td><td>It is a deliberate signpost for a database path that is out of scope</td><td>Looks like a broken command in a demo. It is intentional and documented</td></tr>
+<tr><td><code>Path(args.output_dir).resolve()</code></td><td>Resolved against your shell's directory</td><td>Differs from the config default, which is resolved against the project root. Same-looking paths land in different places</td></tr>
+<tr><td>Prices in the sample climb almost linearly</td><td>The payload has no stated provenance</td><td>The pipeline runs correctly on it, which proves the plumbing and nothing about markets</td></tr>
+<tr><td>No annualisation anywhere</td><td>Daily realized variance is left in decimal-return-squared units</td><td>Multiplying by 252, or volatility by $\sqrt{252}$, only rescales every number by the same constant. It changes no ranking and adds an assumption that every day looks alike</td></tr>
+</tbody>
+</table>
+</div>
+
+<h2 id="limits"><span class="sec-no">15</span>Limitations, stated honestly</h2>
+
+<div class="box flag"><span class="k">One scored date is not an experiment</span>
+<p>Ten trading days, minus four consumed by the rolling window and one by the missing next-day
+label, leaves five feature dates. A four-date warm-up leaves exactly one forecast origin. Every
+metric on this page rests on six numbers produced on a single day. The correct reading is
+"the pipeline runs end to end", not "ridge beats persistence".</p></div>
+
+<div class="box flag"><span class="k">The data has no known origin</span>
+<p><code>raw_manifest.json</code> records no vendor, no extraction date, no method. The reference
+docs say the prices may be synthetic. Every downstream statistic inherits that uncertainty.</p></div>
+
+<div class="box flag"><span class="k">No uncertainty on any number</span>
+<p>The metrics are point estimates with no confidence interval, no Diebold-Mariano test (the
+standard test for whether one forecast is genuinely better than another), and no bootstrap.
+At six observations none of those would be meaningful either, which is the deeper problem.</p></div>
+
+<div class="box flag"><span class="k">One number per day discards most of the data</span>
+<p>The pipeline reads 23,400 minute bars and reduces them to 60 daily numbers, then to 30 modelling
+rows. Well-known refinements are absent: no jump-robust estimator such as bipower variation, no
+correction for the bid-ask bounce that inflates realized variance at high sampling frequencies, no
+overnight-return component, and no signature-plot check that one minute is even the right sampling
+interval for this data.</p></div>
+
+<div class="box flag"><span class="k">The model set is deliberately small</span>
+<p>Three rules only. There is no HAR model &mdash; the heterogeneous autoregressive model, which
+regresses tomorrow's realized variance on its own daily, weekly and monthly averages and is the
+standard benchmark in this literature. There is no GARCH model and no hyperparameter search;
+<code>ridge_alpha</code> is fixed at 1.0 rather than chosen on a validation window. This is a scope
+decision stated in the README, not an oversight, but a reader should know what is missing.</p></div>
+
+<div class="box flag"><span class="k">Pooling six symbols into one regression</span>
+<p>The ridge model fits one set of weights across all symbols at once, treating an AAPL row and an
+XOM row as interchangeable observations. That is a real modelling assumption &mdash; that the
+relationship between recent and future choppiness is the same for every stock &mdash; and it is
+nowhere stated or tested. It also means the residuals within a date are correlated, which any
+later attempt at inference would have to account for.</p></div>
+
+<h2 id="verify"><span class="sec-no">16</span>How the code is verified</h2>
+
+<div class="scroll">
+<table>
+<thead><tr><th>Check</th><th>How it works</th><th>What it catches</th></tr></thead>
+<tbody>
+<tr><td><code>test_raw_contract.py</code> (3 tests)</td><td>Recomputes file count, byte total and row count from the parquet files and compares with the manifest; also asserts every parquet lives under <code>data/raw/</code> and the payload is under 100 MB</td><td>A manifest that has drifted from the data it describes, and stray data files outside the agreed folder</td></tr>
+<tr><td><code>test_realized_variance.py</code></td><td>Feeds four hand-written bars with prices 100, 101, 99, 100 and checks the returned variance equals the hand-computed sum of squared log returns</td><td>Any change to the core formula, including a wrong grouping or a missing square</td></tr>
+<tr><td><code>test_feature_building.py</code></td><td>Builds features from eight fabricated days and asserts that <code>current_log_rv</code> equals the log of that day's variance and the target equals the log of the <i>next</i> day's</td><td>An off-by-one in the shift, which is the classic way look-ahead sneaks in</td></tr>
+<tr><td><code>test_modeling_pipeline.py</code> (2 tests)</td><td>One test checks shape, finiteness and that <code>feature_date &lt; target_date</code> everywhere. The second fabricates a data gap and asserts scoring starts one date later than it otherwise would</td><td>Exactly the look-ahead the <code>target_date &lt;= test_date</code> purge exists to prevent</td></tr>
+<tr><td><code>test_evaluation_metrics.py</code></td><td>Hand-built forecasts where persistence errs by 2 on both rows and ridge by 1, giving skill $1 - 2/8 = 0.75$</td><td>A skill formula inverted, or computed against the wrong denominator</td></tr>
+<tr><td><code>test_offline_demo.py</code></td><td>Runs the whole pipeline into a temporary folder and asserts all four artifacts exist, the three model names are present, persistence skill is exactly 0.0, and no HTML file was written</td><td>Any stage that breaks the chain, plus scope creep into a reporting layer the project excludes</td></tr>
+<tr><td><code>test_cli.py</code> (4 tests)</td><td>Runs both commands as real subprocesses and checks exit codes, printed text and written files</td><td>Argument-parsing errors and the wrong exit code on the failure path</td></tr>
+<tr><td><code>test_notebook_walkthrough.py</code> (2 tests)</td><td>Executes the notebook with <code>nbconvert</code> and asserts no two code cells sit next to each other without explanation between them</td><td>A notebook that has silently stopped running, or that has drifted into a code dump</td></tr>
+</tbody>
+</table>
+</div>
+
+<div class="box def"><span class="k">Result on this checkout</span>
+<p><code>uv run python -m pytest -q</code> gives <b>15 passed</b>, before and after the four fixes
+in section 11. The demo command was also run for real: it wrote <code>metrics.json</code>,
+<code>predictions.parquet</code>, <code>coefficients.csv</code> and four PNGs to
+<code>outputs/demo_run</code>. Every number quoted on this page came from that run.</p></div>
+
+<div class="box warn"><span class="k">One thing the tests cannot tell you</span>
+<p>They confirm the code does what it was designed to do. They cannot confirm the design answers
+the research question, because that needs more than one scored date. Passing tests and a
+meaningful result are separate claims, and only the first one holds here.</p></div>
+
+<p class="foot">Companion reading: <code>README.md</code> for scope, <code>GUIDE_OVERVIEW.md</code>
+for architecture, <code>docs/reference/assumptions.md</code> for the modelling assumptions in the
+project's own words, and <code>notebooks/intraday_variance_walkthrough.ipynb</code> to step through
+the same pipeline interactively.</p>
+
+</div>
+</body>
+</html>

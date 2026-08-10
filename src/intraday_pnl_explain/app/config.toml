@@ -4,3 +4,14 @@ raw_root = "data/raw"
 
 # Default directory for offline demo artifacts.
 default_output_directory = "outputs/demo_run"
+
+[modeling]
+# Number of distinct feature dates that must be available before the walk-forward
+# loop scores its first out-of-sample date. Larger values mean a longer warm-up
+# and fewer scored dates. The tracked demo payload has five feature dates, so
+# values above 4 produce no predictions at all.
+min_train_dates = 4
+
+# L2 regularization strength for the ridge regression. Larger values shrink the
+# fitted feature weights toward zero; 0.0 reduces ridge to ordinary least squares.
+ridge_alpha = 1.0

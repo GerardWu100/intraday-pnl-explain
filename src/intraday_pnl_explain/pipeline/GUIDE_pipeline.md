@@ -20,7 +20,17 @@ Data flow:
   writes offline artifacts.
 - `__init__.py`: package marker only.
 
+Walk-forward settings come from `app/config.toml`:
+
+- `[modeling] min_train_dates`: feature dates required before the first scored
+  date. The tracked payload has five feature dates, so values above 4 leave no
+  forecast origin and the pipeline raises a clear error instead of running.
+- `[modeling] ridge_alpha`: L2 regularization strength for the ridge benchmark.
+
 ## Part 3: Short journal
 
 - 2026-04-19: Added unified offline demo pipeline command.
 - 2026-07-13: Pipeline metrics now use persistence as the feasible forecast benchmark.
+- 2026-08-10: Moved `min_train_dates` and `ridge_alpha` out of the call site into
+  `app/config.toml`, and added an explicit error when the walk-forward loop
+  produces no out-of-sample predictions.

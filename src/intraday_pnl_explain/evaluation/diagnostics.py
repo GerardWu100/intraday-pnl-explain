@@ -52,23 +52,32 @@ def write_diagnostic_figures(
     _save_figure(history_figure, figures_directory / "realized_variance_history.png")
 
     ridge_predictions = predictions[predictions["model_name"] == "ridge"].copy()
-    ridge_predictions = ridge_predictions.sort_values("target_date")
+    ridge_predictions = ridge_predictions.sort_values(["target_date", "symbol"])
     prediction_figure, prediction_axis = plt.subplots(
         figsize=(11, 4),
         dpi=140,
         constrained_layout=True,
     )
+    # Several symbols share each target date, so consecutive rows are not one
+    # time series. Markers only; a connecting line would invent a path between
+    # different symbols.
     prediction_axis.plot(
         ridge_predictions["target_date"],
         ridge_predictions["actual_log_rv_next_day"],
         label="Actual",
         color="#2ca02c",
+        marker="o",
+        linestyle="none",
+        alpha=0.8,
     )
     prediction_axis.plot(
         ridge_predictions["target_date"],
         ridge_predictions["prediction_log_rv_next_day"],
         label="Ridge prediction",
         color="#ff7f0e",
+        marker="x",
+        linestyle="none",
+        alpha=0.8,
     )
     prediction_axis.set_title("Ridge Prediction Versus Actual")
     prediction_axis.set_xlabel("Target Date")
