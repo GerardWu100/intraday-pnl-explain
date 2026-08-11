@@ -107,8 +107,7 @@ A date-order split alone is not enough when a symbol has missing sessions. A row
 
 ```python
 train_frame = frame[
-    (frame["feature_date"] < test_date)
-    & (frame["target_date"] <= test_date)
+    (frame["feature_date"] < test_date) & (frame["target_date"] <= test_date)
 ].copy()
 ```
 

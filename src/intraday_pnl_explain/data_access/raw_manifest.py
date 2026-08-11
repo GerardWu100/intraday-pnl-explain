@@ -10,10 +10,9 @@ The contract is intentionally strict so offline reproducibility is explicit:
 
 from __future__ import annotations
 
-from dataclasses import dataclass
 import json
+from dataclasses import dataclass
 from pathlib import Path
-
 
 REQUIRED_MANIFEST_KEYS = {
     "dataset_name",

@@ -36,7 +36,9 @@ def _append_prediction_rows(
     predicted_log_rv: np.ndarray,
 ) -> None:
     """Append one out-of-sample row per symbol for a single walk-forward test date."""
-    for test_row, prediction_value in zip(test_frame.itertuples(index=False), predicted_log_rv):
+    for test_row, prediction_value in zip(
+        test_frame.itertuples(index=False), predicted_log_rv
+    ):
         prediction_rows.append(
             {
                 "model_name": model_name,
@@ -110,8 +112,7 @@ def build_walk_forward_predictions(
     for date_index in range(min_train_dates, len(unique_dates)):
         test_date = unique_dates[date_index]
         train_frame = frame[
-            (frame["feature_date"] < test_date)
-            & (frame["target_date"] <= test_date)
+            (frame["feature_date"] < test_date) & (frame["target_date"] <= test_date)
         ].copy()
         test_frame = frame[frame["feature_date"] == test_date].copy()
         eligible_train_dates = sorted(train_frame["feature_date"].unique())

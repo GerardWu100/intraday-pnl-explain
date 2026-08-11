@@ -4,7 +4,6 @@ from __future__ import annotations
 
 import numpy as np
 import pandas as pd
-
 from intraday_pnl_explain.features.build_features import build_feature_table
 
 

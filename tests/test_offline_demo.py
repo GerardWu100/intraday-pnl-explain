@@ -6,7 +6,6 @@ import json
 from pathlib import Path
 
 import pandas as pd
-
 from intraday_pnl_explain.pipeline.run_offline_demo import run_offline_demo
 
 

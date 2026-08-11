@@ -107,8 +107,7 @@ Un découpage fondé sur la date ne suffit pas lorsqu'un titre présente des sé
 
 ```python
 train_frame = frame[
-    (frame["feature_date"] < test_date)
-    & (frame["target_date"] <= test_date)
+    (frame["feature_date"] < test_date) & (frame["target_date"] <= test_date)
 ].copy()
 ```
 

@@ -5,7 +5,6 @@ from __future__ import annotations
 import numpy as np
 import pandas as pd
 
-
 PERSISTENCE_MODEL_NAME = "persistence"
 
 
@@ -34,9 +33,7 @@ def compute_model_metrics(predictions: pd.DataFrame) -> dict[str, dict[str, floa
     observation_columns = ["symbol", "feature_date", "target_date"]
     persistence_rows = persistence_rows.loc[
         :, [*observation_columns, "prediction_log_rv_next_day"]
-    ].rename(
-        columns={"prediction_log_rv_next_day": "persistence_prediction"}
-    )
+    ].rename(columns={"prediction_log_rv_next_day": "persistence_prediction"})
     metrics_by_model: dict[str, dict[str, float]] = {}
 
     for model_name, group in predictions.groupby("model_name"):
@@ -52,8 +49,12 @@ def compute_model_metrics(predictions: pd.DataFrame) -> dict[str, dict[str, floa
             )
 
         actual_values = scored_group["actual_log_rv_next_day"].to_numpy(dtype=float)
-        predicted_values = scored_group["prediction_log_rv_next_day"].to_numpy(dtype=float)
-        persistence_values = scored_group["persistence_prediction"].to_numpy(dtype=float)
+        predicted_values = scored_group["prediction_log_rv_next_day"].to_numpy(
+            dtype=float
+        )
+        persistence_values = scored_group["persistence_prediction"].to_numpy(
+            dtype=float
+        )
         residual_values = actual_values - predicted_values
         persistence_residual_values = actual_values - persistence_values
 

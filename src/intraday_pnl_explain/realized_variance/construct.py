@@ -50,9 +50,9 @@ def construct_daily_realized_variance(bars: pd.DataFrame) -> pd.DataFrame:
     prepared_bars["date"] = pd.to_datetime(local_date)
 
     group_columns = ["symbol", "date"]
-    prepared_bars["log_return"] = prepared_bars.groupby(group_columns)["price"].transform(
-        lambda values: np.log(values / values.shift(1))
-    )
+    prepared_bars["log_return"] = prepared_bars.groupby(group_columns)[
+        "price"
+    ].transform(lambda values: np.log(values / values.shift(1)))
 
     realized_daily = (
         prepared_bars.groupby(group_columns, as_index=False)

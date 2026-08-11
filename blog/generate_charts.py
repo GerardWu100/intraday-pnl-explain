@@ -13,7 +13,6 @@ from pathlib import Path
 import matplotlib.pyplot as plt
 import numpy as np
 import pandas as pd
-
 from intraday_pnl_explain.app.config import load_app_config
 from intraday_pnl_explain.data_access.raw_bars import load_raw_intraday_bars
 from intraday_pnl_explain.data_access.raw_manifest import load_raw_manifest
@@ -114,7 +113,9 @@ def _plot_realized_variance(realized: pd.DataFrame) -> None:
         fontsize=16,
         fontweight="bold",
     )
-    figure.savefig(IMAGES_DIRECTORY / "01_realized_variance_by_symbol.png", dpi=FIGURE_DPI)
+    figure.savefig(
+        IMAGES_DIRECTORY / "01_realized_variance_by_symbol.png", dpi=FIGURE_DPI
+    )
     plt.close(figure)
 
 

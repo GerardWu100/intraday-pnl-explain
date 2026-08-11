@@ -4,7 +4,6 @@ from __future__ import annotations
 
 import numpy as np
 import pandas as pd
-
 from intraday_pnl_explain.realized_variance.construct import (
     construct_daily_realized_variance,
 )

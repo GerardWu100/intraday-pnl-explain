@@ -4,7 +4,6 @@ from __future__ import annotations
 
 import pandas as pd
 import pytest
-
 from intraday_pnl_explain.evaluation.metrics import compute_model_metrics
 
 

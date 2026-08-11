@@ -25,7 +25,7 @@ def test_raw_manifest_exists_and_matches_payload_files() -> None:
     required_columns = payload["required_columns"]
     for raw_path in raw_paths:
         frame = pd.read_parquet(raw_path)
-        computed_total_rows += int(len(frame.index))
+        computed_total_rows += len(frame.index)
         assert list(frame.columns) == required_columns
 
     assert payload["row_count"] == computed_total_rows
