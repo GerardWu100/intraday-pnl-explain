@@ -1,63 +1,75 @@
 # intraday-pnl-explain
 
-`intraday-pnl-explain` is now an offline-first quantitative research demo focused on one question:
+An offline quant research demo that asks one question: do simple lagged intraday realized-variance features forecast next-day realized variance better than naive baselines? Everything runs from parquet bars already tracked in this repo, so cloning is enough to reproduce a run.
 
-Can simple lagged intraday realized-variance features forecast next-day realized variance better than naive baselines?
+## What it does
 
-The project runs entirely from tracked local parquet files under `data/raw/`.
+The pipeline builds daily realized variance per symbol from intraday log returns, engineers lagged/rolling features, and walk-forward evaluates three forecasters of next-day log realized variance:
 
-## Offline Architecture
+- persistence (tomorrow = today)
+- rolling mean
+- ridge regression on standardized features
 
-```text
-data/raw/intraday_bars/*.parquet
-  -> intraday_pnl_explain.data_access (manifest + bars)
-  -> intraday_pnl_explain.realized_variance.construct
-  -> intraday_pnl_explain.features.build_features
-  -> intraday_pnl_explain.modeling.train (walk-forward: persistence, rolling mean, ridge)
-  -> intraday_pnl_explain.evaluation (metrics + diagnostics)
-  -> outputs/demo_run/{metrics.json,predictions.parquet,coefficients.csv,figures/*.png}
+For symbol $i$ and bar $t$, the intraday log return is $r_{i,t} = \log(P_{i,t} / P_{i,t-1})$, and daily realized variance is:
+
+$$
+RV_{i,d} = \sum_{t \in d} r_{i,t}^2
+$$
+
+The model target is $\log(RV_{i,d+1})$. Each forecast origin only sees information available after day $d$ closes; a label-availability purge keeps unobserved future targets out of training. Full assumptions and formulas are in `docs/reference/assumptions.md`.
+
+The tracked demo payload covers six symbols (AAPL, CVX, JPM, MSFT, NVDA, XOM) over a short date range with one held-out forecast date. That is enough to exercise the workflow end to end, not enough to draw statistical conclusions about real market behavior — see `docs/reference/assumptions.md` and `docs/reference/raw_data_contract.md` for why (the raw manifest also does not state data vendor or provenance).
+
+## Requirements
+
+- Python >= 3.13
+- No external service is required for the default runtime path.
+- `.env` declares `CLICKHOUSE_HOST`, `CLICKHOUSE_PORT`, `CLICKHOUSE_USER`, `CLICKHOUSE_PASSWORD`, `CLICKHOUSE_SECURE`, `CLICKHOUSE_VERIFY` for a possible future one-time cache-refresh path, but no code currently reads them. The `build-raw-manifest` CLI command is a stub that always raises a clear "offline only" error.
+
+## Setup
+
+```
+uv sync --extra dev
 ```
 
-ClickHouse support is optional and one-time only for refreshing raw cache payloads. It is not required for default runtime commands or notebook execution.
+The `dev` extra brings in `pytest`, `jupyter`, and `ipykernel`, needed for tests and the notebook.
 
-## Install
+## Usage
 
-`uv sync --extra dev`
+- `uv run python -m intraday_pnl_explain.app.cli run-offline-demo` — run the full pipeline and write artifacts to `outputs/demo_run` (override with `--output-dir`).
+- `uv run python -m intraday_pnl_explain.app.cli build-raw-manifest` — stub for a one-time ClickHouse refresh; always fails offline with an explanatory message.
+- `uv run python -m nbconvert --to notebook --execute --inplace notebooks/intraday_variance_walkthrough.ipynb` — run the teaching notebook, which calls the real `src/` modules.
+- `uv run python -m pytest -v` — run the test suite.
 
-## Run Offline Demo
+## Configuration
 
-`uv run python -m intraday_pnl_explain.app.cli run-offline-demo`
+Settings live in `src/intraday_pnl_explain/app/config.toml`:
 
-Optional output location:
+- `[paths] raw_root` — where tracked raw parquet bars live (`data/raw`).
+- `[paths] default_output_directory` — default artifact directory (`outputs/demo_run`).
+- `[modeling] min_train_dates` — feature dates required before the first out-of-sample date is scored. The tracked payload has five feature dates, so values above 4 produce no predictions.
+- `[modeling] ridge_alpha` — L2 regularization strength for the ridge benchmark.
 
-`uv run python -m intraday_pnl_explain.app.cli run-offline-demo --output-dir outputs/demo_run`
+## Layout
 
-Optional one-time refresh entrypoint (expected offline-only failure in this repo clone):
+```
+src/intraday_pnl_explain/   importable package: app, data_access, realized_variance, features, modeling, evaluation, pipeline
+data/raw/                   tracked intraday parquet bars and raw_manifest.json
+notebooks/                  teaching notebook that imports src/ modules
+tests/                      unit and integration tests
+docs/                       user runbook and quant assumptions/data contract
+outputs/                    generated run artifacts (not tracked in git)
+```
 
-`uv run python -m intraday_pnl_explain.app.cli build-raw-manifest`
+## Output
 
-## Run Notebook
+`run-offline-demo` writes to `outputs/demo_run/` (or `--output-dir`):
 
-`uv run python -m nbconvert --to notebook --execute --inplace notebooks/intraday_variance_walkthrough.ipynb`
+- `metrics.json` — error metrics and skill versus persistence
+- `predictions.parquet` — per-date, per-symbol forecasts
+- `coefficients.csv` — fitted ridge coefficients
+- `figures/*.png` — realized-variance history, prediction-vs-actual, residual distribution, coefficient bar chart
 
-## Run Tests
+## License
 
-`uv run python -m pytest -v`
-
-## What This Demonstrates In Interviews
-
-- A complete offline research workflow from raw bars to evaluated forecasts.
-- Session-local realized-variance target construction from intraday log returns.
-- Post-close feature engineering and label-availability-purged walk-forward evaluation.
-- Baseline-versus-linear-model comparison with interpretable outputs.
-- Portable reproducibility: clone + tracked `data/raw/` is enough to run.
-
-## Scope Limits
-
-- One target only: next-day daily realized variance (modeled in log space).
-- One dataset family only: intraday bars.
-- Two naive baselines plus one ridge benchmark.
-- No HTML reporting layer, dashboards, or web application surface.
-- No hyperparameter search, deep learning, or live database dependency.
-- The tracked manifest does not identify the bars' vendor or generation process;
-  results demonstrate the workflow and are not market-data evidence.
+All rights reserved. See [LICENSE](LICENSE).
