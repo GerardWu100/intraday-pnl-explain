@@ -169,25 +169,24 @@
 
 <p class="eyebrow"><span class="dot"></span>intraday-pnl-explain &middot; offline research demo &middot; code walkthrough</p>
 <h1>intraday-pnl-explain: reading the code</h1>
-<p class="lede">What the project does, how the seven modules fit together, and the handful of
-decisions that decide whether the numbers mean anything.</p>
+<p class="lede">What the project does, how its seven modules fit together, and which choices affect
+the meaning of its results.</p>
 
 <div class="box def">
   <span class="k">How to use this</span>
-  <p>Sections follow the order the code runs in. Every snippet is copied from the file named
-  in its heading. Every number in a <b>Sample data</b> box came from running the real pipeline
-  on the tracked files in <code>data/raw/</code> &mdash; nothing here is estimated.
-  This page explains <b>structure and behaviour</b>, not syntax; trivial lines are skipped.</p>
+  <p>Sections follow the order in which the code runs. Each snippet comes from the file named in
+  its heading. Each number in a <b>Sample data</b> box came from running the pipeline on the tracked
+  files in <code>data/raw/</code>; none was estimated. This page explains <b>structure and
+  behaviour</b>, so it skips routine syntax.</p>
 </div>
 
 <div class="box why">
   <span class="k">The process in plain English</span>
-  <p>The project asks one question: if you know how choppy a stock's trading was today, can you
-  guess how choppy it will be tomorrow better than by simply saying "the same as today"?
-  It reads minute-by-minute prices from local files, adds up the squared minute-to-minute moves
-  within each day to get a single "how choppy was today" number, builds a few simple summaries of
-  the recent past, then compares three forecasting rules on days the models never saw.
-  It writes the scores, the forecasts, the fitted weights, and four charts to disk.</p>
+  <p>The project asks whether recent intraday price movement can forecast the next day's movement
+  better than saying "the same as today". It reads minute prices from local files, adds the
+  squared minute-to-minute moves within each day, builds summaries of recent days, and compares
+  three forecasting rules on dates kept out of training. It writes scores, forecasts, fitted
+  weights, and four charts to disk.</p>
 </div>
 
 <h2 id="map"><span class="sec-no">00</span>Map</h2>
@@ -210,9 +209,9 @@ flowchart LR
   cli["cli.py"] --> pipe["run_offline_demo()"]
   pipe --> man
 </div>
-<p class="fnote">Rounded boxes are functions, cylinders are stored data, the slanted box is a
-settings file. Arrows point the way data moves. <code>run_offline_demo()</code> is the one
-function that calls all the others in order.</p>
+<p class="fnote">Rounded boxes are functions, cylinders are stored data, and the slanted box is a
+settings file. Arrows show the direction of data flow. <code>run_offline_demo()</code> calls the
+other stages in order.</p>
 
 <div class="toc">
   <div class="rk">Contents</div>
@@ -226,7 +225,7 @@ function that calls all the others in order.</p>
     <li><a href="#sec7">Walk-forward training &mdash; <code>build_walk_forward_predictions</code></a></li>
     <li><a href="#sec8">Scoring &mdash; <code>compute_model_metrics</code></a></li>
     <li><a href="#sec9">Charts &mdash; <code>write_diagnostic_figures</code></a></li>
-    <li><a href="#sec10">Wiring it together &mdash; <code>run_offline_demo</code> and the CLI</a></li>
+    <li><a href="#sec10">Wiring it together &mdash; <code>run_offline_demo</code> and the command-line interface</a></li>
     <li><a href="#fixes">Fixes applied</a></li>
     <li><a href="#callgraph">Call graph</a></li>
     <li><a href="#edge">Edge cases</a></li>
@@ -238,37 +237,37 @@ function that calls all the others in order.</p>
 
 <h2 id="sec1"><span class="sec-no">01</span>What the project is, and how to run it</h2>
 
-<p>The research question, taken from <code>README.md</code>: <b>can simple lagged intraday
+<p>The research question from <code>README.md</code> is: <b>can simple lagged intraday
 realized-variance features forecast next-day realized variance better than naive baselines?</b></p>
 
-<p>Two terms, defined before they are used again:</p>
+<p>Two terms used throughout:</p>
 <ul>
-  <li><b>Realized variance</b> &mdash; a measure of how much a price moved during one trading day,
-  built by adding up the squared minute-to-minute returns. Bigger number, choppier day.
-  It is a <i>measurement</i> of the past, not a forecast.</li>
-  <li><b>Baseline</b> &mdash; a deliberately dumb forecast you must beat before claiming a model
-  works. Here the main one is <i>persistence</i>: "tomorrow will be exactly like today".</li>
+  <li><b>Realized variance</b> &mdash; a measure of a price's movement during one trading day,
+  found by adding the squared minute-to-minute returns. A larger value means a choppier day.
+  It is a <i>measurement</i> of the past; it does not forecast the future.</li>
+  <li><b>Baseline</b> &mdash; a simple reference forecast that a model should beat. The main one
+  here is <i>persistence</i>: "tomorrow will be exactly like today".</li>
 </ul>
 
-<p>Everything runs offline from files tracked in the repository. There is no database call, no
-network call, and no credential on the default path.</p>
+<p>Everything runs offline from files tracked in the repository. The default path makes no database
+or network call and needs no credentials.</p>
 
 <h4>Folder layout</h4>
 <div class="scroll">
 <table>
-<thead><tr><th>Path</th><th>What lives there</th></tr></thead>
+<thead><tr><th>Path</th><th>Contents</th></tr></thead>
 <tbody>
 <tr><td><code>src/intraday_pnl_explain/app/</code></td><td>Command-line parsing and <code>config.toml</code> loading.</td></tr>
-<tr><td><code>src/intraday_pnl_explain/data_access/</code></td><td>Manifest validation, parquet loading, and one stub for the optional database path.</td></tr>
-<tr><td><code>src/intraday_pnl_explain/realized_variance/</code></td><td>Turns minute bars into one number per symbol per day.</td></tr>
-<tr><td><code>src/intraday_pnl_explain/features/</code></td><td>Turns the daily numbers into predictors plus a next-day label.</td></tr>
-<tr><td><code>src/intraday_pnl_explain/modeling/</code></td><td>The walk-forward loop and the three forecasting rules.</td></tr>
+<tr><td><code>src/intraday_pnl_explain/data_access/</code></td><td>Manifest checks, parquet loading, and a stub for the optional database path.</td></tr>
+<tr><td><code>src/intraday_pnl_explain/realized_variance/</code></td><td>Converts minute bars into one number per symbol per day.</td></tr>
+<tr><td><code>src/intraday_pnl_explain/features/</code></td><td>Converts daily numbers into predictors and a next-day label.</td></tr>
+<tr><td><code>src/intraday_pnl_explain/modeling/</code></td><td>The walk-forward loop (train on earlier dates, test on the next) and three forecasting rules.</td></tr>
 <tr><td><code>src/intraday_pnl_explain/evaluation/</code></td><td>Error metrics and four diagnostic charts.</td></tr>
-<tr><td><code>src/intraday_pnl_explain/pipeline/</code></td><td>One function that runs all of the above in order.</td></tr>
-<tr><td><code>data/raw/</code></td><td>Six parquet files of one-minute bars plus <code>raw_manifest.json</code>.</td></tr>
-<tr><td><code>tests/</code></td><td>Fifteen tests: data contract, formula checks, leakage check, end-to-end runs.</td></tr>
+<tr><td><code>src/intraday_pnl_explain/pipeline/</code></td><td>Runs all stages in order.</td></tr>
+<tr><td><code>data/raw/</code></td><td>Six parquet files (a columnar file format) of one-minute bars and <code>raw_manifest.json</code>.</td></tr>
+<tr><td><code>tests/</code></td><td>Fifteen tests for the data contract, formulas, leakage, and end-to-end runs.</td></tr>
 <tr><td><code>notebooks/</code></td><td>A teaching walkthrough that imports the same modules.</td></tr>
-<tr><td><code>outputs/</code></td><td>Run artifacts. Ignored by git.</td></tr>
+<tr><td><code>outputs/</code></td><td>Run artifacts, ignored by git.</td></tr>
 </tbody>
 </table>
 </div>
@@ -276,18 +275,18 @@ network call, and no credential on the default path.</p>
 <h4>Entry points</h4>
 <div class="scroll">
 <table>
-<thead><tr><th>Command</th><th>What happens</th></tr></thead>
+<thead><tr><th>Command</th><th>Result</th></tr></thead>
 <tbody>
 <tr><td><code>uv sync --extra dev</code></td><td>Installs dependencies from <code>uv.lock</code>.</td></tr>
-<tr><td><code>uv run python -m intraday_pnl_explain.app.cli run-offline-demo</code></td><td>Runs the whole pipeline and writes to <code>outputs/demo_run</code>.</td></tr>
-<tr><td><code>... run-offline-demo --output-dir PATH</code></td><td>Same, writing somewhere else. <code>PATH</code> is resolved against your current directory, not the project root.</td></tr>
-<tr><td><code>... build-raw-manifest</code></td><td>Always fails with a clear message and exit code 1. It exists to mark where the optional one-time database refresh would go.</td></tr>
+<tr><td><code>uv run python -m intraday_pnl_explain.app.cli run-offline-demo</code></td><td>Runs the pipeline and writes to <code>outputs/demo_run</code>.</td></tr>
+<tr><td><code>... run-offline-demo --output-dir PATH</code></td><td>Runs the same pipeline elsewhere. <code>PATH</code> is resolved from the current directory, not the project root.</td></tr>
+<tr><td><code>... build-raw-manifest</code></td><td>Fails with a clear message and exit code 1. It marks the optional one-time database refresh, which is out of scope.</td></tr>
 <tr><td><code>uv run python -m pytest -v</code></td><td>Runs the 15 tests. All pass on this checkout.</td></tr>
 </tbody>
 </table>
 </div>
 
-<h4>What the demo data actually is</h4>
+<h4>What the demo data contains</h4>
 <div class="box data"><span class="k">Sample data</span>
 <div class="io">
 <div><span class="lab">in &mdash; data/raw/raw_manifest.json</span>
@@ -313,15 +312,14 @@ AAPL    2026-03-24 13:33:00+00:00  103.961294  1000
 
 3900 rows per symbol &lt;- 10 sessions x 390 minutes</pre></div>
 </div>
-<p>13:30 UTC is 09:30 in New York, so the first bar of the session is the first row.
-Six symbols x 10 sessions x 390 one-minute bars = 23,400 rows, which is exactly the
-<code>row_count</code> the manifest claims.</p></div>
+<p>13:30 Coordinated Universal Time (UTC) is 09:30 in New York, so the first bar is the first
+row. Six symbols x 10 sessions x 390 one-minute bars = 23,400 rows, matching the manifest's
+<code>row_count</code>.</p></div>
 
 <div class="box flag"><span class="k">The weakness, stated honestly</span>
-<p>The manifest names no vendor and no generation method, and the prices in the sample rise in
-a very smooth line. <code>docs/reference/raw_data_contract.md</code> says so plainly. Treat the
-payload as a fixture that exercises the workflow, not as market data. Nothing on this page is
-evidence about real markets.</p></div>
+<p>The manifest names neither a vendor nor a generation method, and the sample prices rise very
+smoothly. <code>docs/reference/raw_data_contract.md</code> records this. Treat the payload as a
+fixture for testing the workflow, not as market data. It provides no evidence about real markets.</p></div>
 
 <h2 id="sec2"><span class="sec-no">02</span>Settings &mdash; <code>config.toml</code> and <code>load_app_config</code></h2>
 
@@ -363,14 +361,14 @@ ridge_alpha = 1.0</pre>
     )</pre>
 
 <div class="box gist"><span class="k">In plain words</span>
-<p>Reads the four settings out of one small text file and turns the two path settings into
-full absolute paths, working out where the project root is from the file's own location.</p></div>
+<p>Reads four settings from one text file and turns the two path settings into absolute paths by
+finding the project root from the config file's location.</p></div>
 
 <div class="box def"><span class="k">What it does</span>
-<p><b>Input:</b> nothing; it finds <code>config.toml</code> beside itself.
+<p><b>Input:</b> none; it finds <code>config.toml</code> beside itself.
 <b>Output:</b> a frozen <code>AppConfig</code> with <code>project_root</code>, <code>raw_root</code>,
 <code>default_output_directory</code>, <code>min_train_dates</code>, <code>ridge_alpha</code>.
-<b>Role:</b> the single place every other module asks "where is the data and how should the model be set up".</p></div>
+<b>Role:</b> gives every module one answer to "where is the data and how is the model configured?"</p></div>
 
 <div class="box data"><span class="k">Sample data</span>
 <div class="io">
@@ -390,19 +388,18 @@ default_output_directory
 min_train_dates 4
 ridge_alpha     1.0</pre></div>
 </div>
-<p>Printed by importing the module and calling the function; the paths are this machine's real ones.</p></div>
+<p>These values came from importing the module and calling the function. The paths are real paths on this machine.</p></div>
 
 <div class="box why"><span class="k">Why the root is derived, not passed in</span>
-<p><code>Path(__file__).resolve().parents[3]</code> means the pipeline works no matter which
-directory you launch it from. If it used a relative path like <code>"data/raw"</code> directly,
-running the code from inside <code>notebooks/</code> would fail. The notebook still does its own
-root-finding because it cannot rely on <code>__file__</code>.</p></div>
+<p><code>Path(__file__).resolve().parents[3]</code> lets the pipeline work from any launch directory.
+Using <code>"data/raw"</code> directly would fail when launched from <code>notebooks/</code>.
+The notebook finds the root separately because it cannot rely on <code>__file__</code>.</p></div>
 
 <div class="box warn"><span class="k">Trap</span>
-<p><code>parents[3]</code> is a hard-coded depth. If anyone moves <code>config.py</code> up or
-down one folder, <code>project_root</code> silently points at the wrong directory and you get a
-confusing "file not found" rather than a clear error. The depth is a fact about the layout, not
-a setting, so it cannot live in the config file it is used to find.</p></div>
+<p><code>parents[3]</code> is a hard-coded depth. Moving <code>config.py</code> up or down one
+folder makes <code>project_root</code> point to the wrong directory and produces a confusing
+"file not found" error. The depth belongs to the layout, so it cannot be read from the config file
+whose location it helps determine.</p></div>
 
 <h2 id="sec3"><span class="sec-no">03</span>The data contract &mdash; <code>load_raw_manifest</code></h2>
 
@@ -423,27 +420,27 @@ a setting, so it cannot live in the config file it is used to find.</p></div>
     )</pre>
 
 <div class="box gist"><span class="k">In plain words</span>
-<p>Reads the small description file that sits next to the data, checks that all thirteen expected
-fields are there, and hands back a typed object instead of a loose dictionary.</p></div>
+<p>Reads the data's description file, checks that all thirteen expected fields are present, and
+returns a typed object instead of a loose dictionary.</p></div>
 
 <div class="box def"><span class="k">What it does</span>
 <p><b>Input:</b> the folder holding <code>raw_manifest.json</code>.
 <b>Output:</b> a frozen <code>RawManifest</code> dataclass with thirteen fields.
-<b>Role:</b> supplies the symbol list and the session timezone to the bar loader, and gives the
-whole pipeline one loud failure point if the tracked data changes shape.</p></div>
+<b>Role:</b> supplies the symbol list and session timezone to the bar loader, and gives the
+pipeline one clear failure point if the tracked data changes shape.</p></div>
 
 <div class="box why"><span class="k">Why a dataclass rather than the raw dictionary</span>
-<p>Two reasons. Field names get checked by the editor and the type checker instead of by a typo
-at run time. And the explicit <code>str()</code>, <code>int()</code>, <code>list()</code> casts
-mean a manifest that stores <code>row_count</code> as the text <code>"23400"</code> still produces
-an integer downstream, rather than failing much later inside a comparison.</p></div>
+<p>Field names can be checked by the editor and type checker, which reduces typo-driven runtime
+errors. The explicit <code>str()</code>, <code>int()</code>, and <code>list()</code> conversions
+also turn <code>row_count</code> containing the text <code>"23400"</code> into an integer before
+downstream code uses it.</p></div>
 
 <div class="box warn"><span class="k">Trap</span>
-<p>The check is <b>missing keys only</b>. Extra keys are accepted and ignored, and no value is
-validated: nothing confirms that <code>symbols</code> is a list of strings, that
-<code>start_date</code> parses as a date, or that <code>row_count</code> matches the files.
-The last of those is checked, but by a test (<code>tests/test_raw_contract.py</code>), not by the
-loader. A corrupted manifest passes this function and fails later.</p></div>
+<p>The check finds <b>missing keys only</b>. Extra keys are ignored, and values are not validated:
+nothing here confirms that <code>symbols</code> is a list of strings, that <code>start_date</code>
+is a valid date, or that <code>row_count</code> matches the files. The test
+<code>tests/test_raw_contract.py</code> checks the last condition. A corrupted manifest can pass
+this function and fail later.</p></div>
 
 <h2 id="sec4"><span class="sec-no">04</span>Loading bars &mdash; <code>load_raw_intraday_bars</code></h2>
 
@@ -485,40 +482,36 @@ def load_raw_intraday_bars(raw_root: Path, manifest: RawManifest) -&gt; pd.DataF
     return bars</pre>
 
 <div class="box gist"><span class="k">In plain words</span>
-<p>Opens one parquet file per symbol, stacks them into a single table, keeps only the four
-agreed columns, puts the rows in time order, throws away duplicate timestamps, and drops any bar
-outside the regular 09:30&ndash;15:59 New York trading window.</p></div>
+<p>Opens one parquet file per symbol, combines them into one table, keeps the four required columns,
+sorts the rows by time, removes duplicate timestamps, and drops bars outside the regular
+09:30&ndash;15:59 New York trading window.</p></div>
 
 <div class="box def"><span class="k">What it does</span>
 <p><b>Input:</b> the raw folder and the manifest.
-<b>Output:</b> a single frame with columns <code>symbol</code>, <code>timestamp</code> (UTC),
-<code>price</code>, <code>volume</code> &mdash; 23,400 rows on the tracked data.
-<b>Role:</b> the only place the pipeline touches the file system for market data.</p></div>
+<b>Output:</b> one frame with <code>symbol</code>, <code>timestamp</code> (UTC), <code>price</code>,
+and <code>volume</code>; 23,400 rows for the tracked data.
+<b>Role:</b> the pipeline's only file-system access for market data.</p></div>
 
 <div class="box why"><span class="k">Why the order of the cleaning steps matters</span>
-<p><code>sort_values</code> runs <i>before</i> <code>drop_duplicates(keep="last")</code>. Sorting
-first makes "last" mean "the last row for that timestamp after ordering", which is deterministic.
-Deduplicating first would leave whichever row happened to arrive last in file order &mdash; a
-result that could change if the files were regenerated.</p></div>
+<p><code>sort_values</code> runs <i>before</i> <code>drop_duplicates(keep="last")</code>. That makes
+"last" deterministic after sorting. Deduplicating first would keep whichever row happened to be
+last in file order, which could change when the files were regenerated.</p></div>
 
 <div class="box warn"><span class="k">Trap</span>
-<p>Session filtering converts to local time <b>before</b> comparing, using
-<code>manifest.trading_session_timezone</code>. Comparing raw UTC clock times against 09:30 would
-be wrong twice a year, because New York is five hours behind UTC in winter and four in summer, so
-the session sits at a different UTC time in each half of the year.</p></div>
+<p>Session filtering converts timestamps to local time <b>before</b> comparing them, using
+<code>manifest.trading_session_timezone</code>. Comparing UTC clock times directly with 09:30
+would be wrong because New York is five hours behind UTC in winter and four in summer.</p></div>
 
 <div class="box flag"><span class="k">Two sources of truth for the same fact</span>
-<p>The window 09:30&ndash;15:59 is hard-coded as module constants, while the manifest separately
-carries <code>trading_session = "09:30-15:59"</code>. Nothing checks that the two agree. The
-timezone <i>is</i> read from the manifest, so the code half-trusts the manifest and half-ignores
-it. Today the two match, so behaviour is correct; a manifest describing a different exchange
-would be silently half-honoured.</p></div>
+<p>The window 09:30&ndash;15:59 is hard-coded as module constants, while the manifest also stores
+<code>trading_session = "09:30-15:59"</code>. Nothing checks that they match. The timezone <i>is</i>
+read from the manifest, but the time window is not. A manifest for another exchange would therefore
+be only partly respected.</p></div>
 
 <div class="box warn"><span class="k">Trap in <code>discover_raw_parquet_paths</code></span>
-<p>It globs each symbol's folder and extends the list. A symbol listed in the manifest with no
-folder on disk contributes nothing and raises nothing. The <code>ValueError</code> only fires if
-<b>every</b> symbol is missing. A run that quietly loses one of six symbols looks identical to a
-healthy run.</p></div>
+<p>It searches each symbol's folder and adds the matches to one list. A listed symbol with no
+folder contributes nothing and raises no error. The <code>ValueError</code> fires only when
+<b>every</b> symbol is missing, so a run that loses one of six symbols looks healthy.</p></div>
 
 <h2 id="sec5"><span class="sec-no">05</span>The target &mdash; <code>construct_daily_realized_variance</code></h2>
 
@@ -559,28 +552,25 @@ def construct_daily_realized_variance(bars: pd.DataFrame) -&gt; pd.DataFrame:
     return realized_daily</pre>
 
 <div class="box gist"><span class="k">In plain words</span>
-<p>For each stock and each trading day, it works out how much the price changed from one minute
-to the next, squares each of those changes, and adds them all up. One number per stock per day
-saying how choppy that day was.</p></div>
+<p>For each stock and trading day, it calculates each minute-to-minute price change, squares those
+changes, and adds them. The result is one measure of daily price movement per stock.</p></div>
 
 <div class="box def"><span class="k">What it does</span>
 <p><b>Input:</b> the 23,400-row bar frame.
 <b>Output:</b> 60 rows (6 symbols x 10 days) with <code>symbol</code>, <code>date</code>,
 <code>realized_variance</code>, <code>bar_count</code>, <code>realized_volatility</code>,
-<code>is_complete_session</code>.
-<b>Role:</b> this is the quantity the whole project forecasts.</p></div>
+and <code>is_complete_session</code>.
+<b>Role:</b> produces the quantity the project forecasts.</p></div>
 
 <div class="box def"><span class="k">The formula</span>
 <p>Minute return, for symbol $i$ at minute $t$:</p>
 <p>$$r_{i,t} = \log\!\left(\frac{P_{i,t}}{P_{i,t-1}}\right)$$</p>
 <p>Daily realized variance and its square root, realized volatility, for trading date $d$:</p>
 <p>$$RV_{i,d} = \sum_{t \in d} r_{i,t}^{2}, \qquad RVol_{i,d} = \sqrt{RV_{i,d}}$$</p>
-<p class="fnote">$P_{i,t}$ is the price of symbol $i$ recorded at minute $t$, in dollars.
-$r_{i,t}$ is the log return over that minute, a pure number. $\log$ is the natural logarithm.
-$t \in d$ means "all minutes belonging to trading date $d$". $RV_{i,d}$ has units of
-decimal-return squared; $RVol_{i,d}$ has units of decimal return. The sum runs over the
-389 minute intervals inside a full 390-bar session, because the first bar of the day has no
-preceding bar to compare against.</p></div>
+<p class="fnote">$P_{i,t}$ is symbol $i$'s price at minute $t$, in dollars. $r_{i,t}$ is that
+minute's log return, a pure number. $\log$ is the natural logarithm. $t \in d$ means all minutes
+in trading date $d$. $RV_{i,d}$ is in squared decimal-return units; $RVol_{i,d}$ is in decimal
+return units. The sum has 389 intervals because the first of 390 bars has no earlier bar.</p></div>
 
 <div class="box data"><span class="k">Sample data</span>
 <div class="io stack">
@@ -601,33 +591,31 @@ AAPL    2026-03-31       9.499702e-08        389             0.000308   True   &
 </pre></div>
 </div>
 <p><b>Hand check.</b> The first three minute returns for AAPL on 2026-03-24 are
-5.90903638e-05, 5.95624118e-05 and 6.00342148e-05. Summing the squares of all 389 of them
-by hand gives 1.504149526666387e-06, which is exactly what the function returns.
-Across the whole sample all 60 symbol-days have <code>bar_count = 389</code>, so
-<code>is_complete_session</code> is <code>True</code> everywhere.</p></div>
+5.90903638e-05, 5.95624118e-05, and 6.00342148e-05. The sum of the squares of all 389 returns
+is 1.504149526666387e-06, exactly matching the function. All 60 symbol-days have
+<code>bar_count = 389</code>, so <code>is_complete_session</code> is <code>True</code> everywhere.</p></div>
 
 <div class="box why"><span class="k">Why returns are computed inside the day, not across it</span>
-<p><code>groupby(["symbol", "date"])</code> before <code>.shift(1)</code> means the first bar of
-each day has no previous bar and yields a missing value, which the sum skips. Shifting across the
-whole series instead would create one "return" spanning from 15:59 on Monday to 09:30 on Tuesday.
-That overnight gap is usually the single largest move of the day and would swamp the 389 real
-minute returns, turning a measure of intraday choppiness into a measure of overnight news.</p></div>
+<p><code>groupby(["symbol", "date"])</code> before <code>.shift(1)</code> gives the first bar of
+each day a missing return, which the sum skips. Shifting across the whole series would compare
+Monday's 15:59 bar with Tuesday's 09:30 bar. That overnight move could dominate the 389 intraday
+returns and turn this into a measure of overnight news.</p></div>
 
 <div class="box def"><span class="k">Where 389 comes from</span>
-<p>09:30 to 15:59 inclusive, at one-minute spacing, is 390 timestamps.
-$15{\times}60 + 59 - (9{\times}60 + 30) = 959 - 570 = 389$ gaps between them, so 390 bars produce
-389 returns. <code>is_complete_session</code> flags a day as complete when it has all 389.</p></div>
+<p>09:30 to 15:59 inclusive contains 390 one-minute timestamps.
+$15{\times}60 + 59 - (9{\times}60 + 30) = 959 - 570 = 389$ gaps, so 390 bars produce 389
+returns. <code>is_complete_session</code> marks a day complete when all 389 are present.</p></div>
 
 <div class="box flag"><span class="k">A column nobody reads</span>
-<p><code>is_complete_session</code> is computed here and never used again anywhere in the
-pipeline. The feature stage uses <code>bar_count</code> directly instead. It is not wrong, it is
-just dead weight, and a reader may waste time looking for the filter it implies.</p></div>
+<p><code>is_complete_session</code> is computed here but never used later. The feature stage uses
+<code>bar_count</code> directly. It is harmless, but it adds a column that suggests a filter the
+pipeline never applies.</p></div>
 
 <div class="box warn"><span class="k">Trap: the timezone is written twice</span>
-<p><code>"America/New_York"</code> is hard-coded here, but the bar loader took the same timezone
-from <code>manifest.trading_session_timezone</code>. If a manifest ever named a different
-exchange, the loader would filter in that exchange's hours while this function would still cut
-days at New York midnight. The two would disagree and nothing would complain.</p></div>
+<p><code>"America/New_York"</code> is hard-coded here, while the bar loader reads its timezone from
+<code>manifest.trading_session_timezone</code>. If the manifest named another exchange, the loader
+would filter that exchange's hours but this function would still assign dates at New York midnight.
+The mismatch would go unnoticed.</p></div>
 
 <h2 id="sec6"><span class="sec-no">06</span>Features and the leakage rule &mdash; <code>build_feature_table</code></h2>
 
@@ -674,15 +662,14 @@ def build_feature_table(rv_daily: pd.DataFrame) -&gt; pd.DataFrame:
     ...</pre>
 
 <div class="box gist"><span class="k">In plain words</span>
-<p>Takes the daily choppiness numbers, puts them on a log scale, and for each stock and each day
-builds five summaries of what was known by the closing bell &mdash; plus the answer it is trying
-to predict, which is the next day's number.</p></div>
+<p>Places the daily movement numbers on a log scale, then builds five summaries of what was known
+by each stock's closing bell. It also adds the next day's number as the value to predict.</p></div>
 
 <div class="box def"><span class="k">What it does</span>
 <p><b>Input:</b> the 60-row daily realized-variance table.
 <b>Output:</b> 30 rows with <code>symbol</code>, <code>feature_date</code>, <code>target_date</code>,
-the five feature columns, and <code>target_log_rv_next_day</code>.
-<b>Role:</b> defines exactly what the models are allowed to know and what they must guess.</p></div>
+five feature columns, and <code>target_log_rv_next_day</code>.
+<b>Role:</b> defines what the models may know and what they must predict.</p></div>
 
 <div class="box def"><span class="k">The formula</span>
 <p>Log target, with a floor to keep the logarithm finite on a perfectly flat day:</p>
@@ -700,15 +687,14 @@ $$
 </p>
 <p>and the label the models must predict:</p>
 <p>$$\text{target}_{i,d} = y_{i,d+1}$$</p>
-<p class="fnote">$RV_{i,d}$ is the realized variance from section 05. $y_{i,d}$ is its natural
-logarithm, a pure number, typically near $-14$ on this data. $\varepsilon$ is the floor
-<code>EPSILON_VARIANCE</code>. $x^{(1)}$ is today's level, $x^{(2)}$ the five-day average,
-$x^{(3)}$ the five-day sample standard deviation (dividing by $5-1=4$, which is what pandas'
-<code>rolling(5).std()</code> does by default), $x^{(4)}$ the size of yesterday-to-today's move
-regardless of direction, and $x^{(5)}$ the share of the 389 expected minute returns actually
-present. $d-k$ means the $k$-th earlier <i>row</i> for that symbol, which is the $k$-th earlier
-trading date, not the calendar date minus $k$ days. $d+1$ likewise means the next trading date
-for that symbol.</p></div>
+<p class="fnote">$RV_{i,d}$ is realized variance from section 05. $y_{i,d}$ is its natural
+logarithm, usually near $-14$ here. $\varepsilon$ is <code>EPSILON_VARIANCE</code>. $x^{(1)}$
+is today's level, $x^{(2)}$ the five-day average, $x^{(3)}$ the five-day sample standard deviation
+(dividing by $5-1=4$, as pandas' <code>rolling(5).std()</code> does by default), $x^{(4)}$ the
+absolute size of yesterday-to-today's move, and $x^{(5)}$ the share of the 389 expected returns
+that are present. $d-k$ means the $k$-th earlier <i>row</i> for that symbol, which is the $k$-th
+earlier trading date, not the calendar date minus $k$ days. $d+1$ likewise means the next trading
+date for that symbol.</p></div>
 
 <div class="box data"><span class="k">Sample data</span>
 <div class="io stack">
@@ -728,42 +714,37 @@ absolute_1day_log_rv_change    2.566785
 bar_completeness               1.000000
 target_log_rv_next_day       -16.169420</pre></div>
 </div>
-<p><b>Hand check.</b> The mean of the five values on the left is
-$(-13.407283-13.793275-12.704303-14.883148-12.316363)/5 = -13.420874$, which matches
-<code>trailing_5_mean_log_rv</code> exactly. And
-$|-12.316363-(-14.883148)| = 2.566785$ matches <code>absolute_1day_log_rv_change</code>.
-The target $-16.169420$ is AAPL's log realized variance on 2026-03-31, the next trading date.</p>
-<p><b>Whole sample.</b> 60 daily rows become 30 feature rows: five feature dates
-(2026-03-30 through 2026-04-03) times six symbols. The first four dates are lost to the
-five-day rolling window and the last date is lost because it has no following day to label it.</p></div>
+<p><b>Hand check.</b> The mean of the five values is
+$(-13.407283-13.793275-12.704303-14.883148-12.316363)/5 = -13.420874$, matching
+<code>trailing_5_mean_log_rv</code>. Also,
+$|-12.316363-(-14.883148)| = 2.566785$, matching <code>absolute_1day_log_rv_change</code>.
+The target $-16.169420$ is AAPL's log realized variance on the next trading date, 2026-03-31.</p>
+<p><b>Whole sample.</b> The 60 daily rows become 30 feature rows: five feature dates
+(2026-03-30 through 2026-04-03) for six symbols. The first four dates lack five observations;
+the last lacks a following day to use as its label.</p></div>
 
 <div class="box why"><span class="k">Why work in logs at all</span>
-<p>Realized variance on this data ranges from about $9.5 \times 10^{-8}$ to
-$4.5 \times 10^{-6}$ &mdash; a factor of about 47 between the quiet days and the choppy ones,
-and always positive. Fitting a straight line to numbers like that lets one busy day dominate the
-whole fit, and the fitted line can predict a negative variance, which is impossible. On the log
-scale the same range becomes roughly $-16.2$ to $-12.3$, well behaved for a linear model, and
-exponentiating any prediction gives back a positive variance.</p></div>
+<p>Realized variance ranges from about $9.5 \times 10^{-8}$ to $4.5 \times 10^{-6}$ here, a
+factor of about 47, and is always positive. A straight-line model on that scale can be dominated
+by a busy day and can predict a negative variance. The log scale compresses the range to roughly
+$-16.2$ to $-12.3$, and exponentiating a prediction always returns a positive variance.</p></div>
 
 <div class="box why"><span class="k">Why the naming is the leakage control</span>
-<p>The forecast is made <b>after</b> date $d$'s closing bell. At that moment date $d$'s realized
-variance is already measured, so using it is not cheating &mdash; hence <code>current_log_rv</code>
-rather than a lag. The word <code>trailing</code> in the rolling columns says the window ends at
-$d$ and never reaches past it. The one thing not known at that moment is $y_{i,d+1}$, which is why
-it is the target and appears in no feature.</p></div>
+<p>The forecast is made <b>after</b> date $d$ closes, when date $d$'s realized variance is known.
+That makes <code>current_log_rv</code> valid; it does not need another lag. The word
+<code>trailing</code> says the rolling windows end at $d$ and do not use later dates. The only
+unknown is $y_{i,d+1}$, so it is the target and not a feature.</p></div>
 
 <div class="box warn"><span class="k">Trap: "next day" is not "tomorrow"</span>
-<p><code>shift(-1)</code> takes the next <i>row</i> for that symbol. Over the Friday
-2026-04-03 to Monday 2026-04-06 weekend it produces a three-calendar-day gap, and after a
-holiday or a missing file it could be longer still. That is why <code>target_date</code> is
-carried as its own column instead of being reconstructed as <code>feature_date + 1 day</code>:
-the modelling stage needs the real date to decide what was knowable when.</p></div>
+<p><code>shift(-1)</code> takes the next <i>row</i> for that symbol. From Friday 2026-04-03 to
+Monday 2026-04-06, that is a three-calendar-day gap; a holiday or missing file could make it
+longer. The code keeps <code>target_date</code> instead of calculating
+<code>feature_date + 1 day</code> so the modelling stage can apply the correct information cutoff.</p></div>
 
 <div class="box flag"><span class="k">A feature that cannot help</span>
-<p><code>bar_completeness</code> equals exactly 1.0 in all 30 rows, because every session in
-the tracked payload is complete. A column with no variation carries no information; section 07
-shows the ridge model duly gives it a weight of exactly zero. It would matter on messier data,
-but on this data it is a placeholder.</p></div>
+<p><code>bar_completeness</code> is exactly 1.0 in all 30 rows because every tracked session is
+complete. A constant column carries no information, so section 07 shows ridge assigning it a
+weight of exactly zero. It could matter on incomplete data; here it is only a placeholder.</p></div>
 
 <h2 id="sec7"><span class="sec-no">07</span>Walk-forward training &mdash; <code>build_walk_forward_predictions</code></h2>
 
@@ -801,20 +782,19 @@ but on this data it is a placeholder.</p></div>
         ridge_predictions = ridge_model.predict(test_x_scaled)</pre>
 
 <div class="box gist"><span class="k">In plain words</span>
-<p>Steps forward one day at a time. On each step it takes everything that was already known and
-already checkable on that evening, fits the model to it, and makes one forecast per stock for
-the next day. It never looks at a day it has not reached yet.</p></div>
+<p>Moves one day at a time. At each date it uses only information already known and checked by that
+evening, fits the model, and forecasts the next day for each stock. Future dates never enter the fit.</p></div>
 
 <div class="box def"><span class="k">What it does</span>
 <p><b>Input:</b> the 30-row feature table, plus <code>min_train_dates</code> and
 <code>ridge_alpha</code> from the config file.
-<b>Output:</b> two frames &mdash; <code>predictions</code> (one row per model, symbol and forecast
-date) and <code>coefficients</code> (the ridge intercept and five weights per training window).
-<b>Role:</b> the actual experiment. Everything before it prepares data; everything after it scores.</p></div>
+<b>Output:</b> two frames: <code>predictions</code> (one row per model, symbol, and forecast date)
+and <code>coefficients</code> (the ridge intercept and five weights for each training window).
+<b>Role:</b> runs the experiment. Earlier stages prepare data; later stages score it.</p></div>
 
 <div class="box def"><span class="k">The three forecasting rules</span>
-<p>For symbol $i$ and forecast origin $d$, each rule produces a guess $\hat{y}_{i,d+1}$ of the
-next day's log realized variance:</p>
+<p>For symbol $i$ and forecast origin $d$, each rule predicts the next day's log realized variance,
+$\hat{y}_{i,d+1}$:</p>
 <p>$$
 \begin{aligned}
 \text{persistence:} \quad &amp;\hat{y}_{i,d+1} = x^{(1)}_{i,d} = y_{i,d} \\[3pt]
@@ -823,27 +803,25 @@ next day's log realized variance:</p>
 \end{aligned}
 $$
 </p>
-<p class="fnote">$y_{i,d}$ and $x^{(j)}_{i,d}$ are exactly the quantities defined in section 06.
-$\tilde{x}^{(j)}$ is the standardized version of feature $j$, defined just below.
-$b$ is the fitted intercept and $\beta_j$ the fitted weight on feature $j$. The two baselines fit
-nothing: they simply read one column straight off the test row.</p></div>
+<p class="fnote">$y_{i,d}$ and $x^{(j)}_{i,d}$ are defined in section 06. $\tilde{x}^{(j)}$ is
+the standardized version of feature $j$, defined below. $b$ is the fitted intercept and $\beta_j$
+is feature $j$'s fitted weight. The two baselines fit nothing; they read one column from the test row.</p></div>
 
 <div class="box def"><span class="k">The formula: standardizing, then ridge</span>
-<p>Each feature is centred and rescaled using <b>only the training window's</b> mean and standard
-deviation:</p>
+<p>Each feature is centred and rescaled with the mean and standard deviation from <b>the training
+window only</b>:</p>
 <p>$$\tilde{x}^{(j)} = \frac{x^{(j)} - \mu^{(j)}_{\text{train}}}{\sigma^{(j)}_{\text{train}}},
 \qquad \sigma^{(j)}_{\text{train}} \leftarrow 1 \ \text{ if } \ \sigma^{(j)}_{\text{train}} = 0$$</p>
-<p>Ridge regression then picks the intercept and weights that minimise squared error plus a
-penalty on the size of the weights:</p>
+<p>Ridge regression then chooses the intercept and weights by minimizing squared error plus a
+penalty on large weights:</p>
 <p>$$\min_{b,\ \beta}\ \sum_{m=1}^{N}\Big(y_m - b - \sum_{j=1}^{5}\beta_j \tilde{x}^{(j)}_m\Big)^{2}
 \ +\ \alpha \sum_{j=1}^{5} \beta_j^{2}$$</p>
-<p class="fnote">$\mu^{(j)}_{\text{train}}$ and $\sigma^{(j)}_{\text{train}}$ are the mean and
-standard deviation of feature $j$ over the training rows only (population standard deviation,
-dividing by $N$, which is what <code>numpy</code>'s <code>.std()</code> does by default).
-$N$ is the number of training rows, $m$ indexes them, $y_m$ is that row's true next-day log
-realized variance. $\alpha$ is <code>ridge_alpha</code> from the config file, set to 1.0.
-The intercept $b$ is <b>not</b> penalised, which is why standardizing matters: the penalty treats
-all five weights on the same footing only if the features share a scale.</p></div>
+<p class="fnote">$\mu^{(j)}_{\text{train}}$ and $\sigma^{(j)}_{\text{train}}$ are feature $j$'s
+mean and standard deviation over the training rows only. The standard deviation is the population
+version, dividing by $N$, as <code>numpy</code>'s <code>.std()</code> does by default. $N$ is the
+number of training rows; $m$ indexes them; and $y_m$ is that row's true next-day log realized
+variance. $\alpha$ is <code>ridge_alpha</code>, set to 1.0. The intercept $b$ is <b>not</b> penalized, so
+standardization puts all five feature weights on the same scale.</p></div>
 
 <div class="box data"><span class="k">Sample data</span>
 <div class="io stack">
@@ -871,47 +849,41 @@ train_end_date  feature_name                  coefficient
 2026-04-02      absolute_1day_log_rv_change      0.393373
 2026-04-02      bar_completeness                 0.000000   &lt;- constant feature, zero weight</pre></div>
 </div>
-<p>3 models x 6 symbols x 1 scored date = 18 prediction rows. The intercept
-$-14.4428$ is the average training target, because standardized features have mean zero.
-<code>bar_completeness</code> gets a weight of exactly 0.000000: it is 1.0 in every training row,
-so its standard deviation is zero, <code>_standardize</code> replaces the divisor with 1.0, and
-$(1.0 - 1.0)/1.0 = 0$ makes the whole column zeros, which ridge cannot use.</p></div>
+<p>3 models x 6 symbols x 1 scored date = 18 prediction rows. The intercept $-14.4428$ is the
+average training target because standardized features have mean zero. <code>bar_completeness</code>
+has weight 0.000000: it is 1.0 in every training row, so its standard deviation is zero.
+<code>_standardize</code> uses 1.0 as the divisor, and $(1.0 - 1.0)/1.0 = 0$ makes the whole
+column zero.</p></div>
 
 <div class="box why"><span class="k">Why two conditions on the training filter, not one</span>
-<p><code>feature_date &lt; test_date</code> alone would be the usual walk-forward rule. The second
-condition, <code>target_date &lt;= test_date</code>, handles the case where a symbol's next
-observation is far away. Imagine a row with feature date 2026-04-01 whose next observation for
-that symbol is 2026-04-08 because of a data gap. Its label is a fact about 2026-04-08. Training
-on it while forecasting from 2026-04-03 would feed the model an outcome nobody could have known
-&mdash; classic look-ahead. The second condition drops it.
-<code>tests/test_modeling_pipeline.py</code> checks precisely this with a fabricated gap.</p></div>
+<p><code>feature_date &lt; test_date</code> is the usual walk-forward rule. The second condition,
+<code>target_date &lt;= test_date</code>, handles delayed next observations. If a row dated
+2026-04-01 has its next observation on 2026-04-08, using that label for a 2026-04-03 forecast
+would use information not yet available. The second condition removes it.
+<code>tests/test_modeling_pipeline.py</code> checks this with a fabricated gap.</p></div>
 
 <div class="box why"><span class="k">Why the scaling moments come from the training window only</span>
 <p><code>_standardize</code> computes the mean and standard deviation from <code>train_values</code>
-and applies them to both matrices. Computing them over the combined data would let the test row's
-own level leak into the numbers used to fit &mdash; a subtle form of look-ahead that inflates
-results without ever touching the label.</p></div>
+and applies them to both matrices. Computing them from combined data would let the test row affect
+the fitted scale, a form of look-ahead that can inflate results without using the test label.</p></div>
 
 <div class="box warn"><span class="k">Trap: the warm-up is counted twice, and differently</span>
 <p><code>range(min_train_dates, len(unique_dates))</code> uses <code>min_train_dates</code> as a
-<i>position</i> in the date list. The check
-<code>len(eligible_train_dates) &lt; min_train_dates</code> then uses it as a <i>count</i> of dates
-that survived purging. The two agree only when no rows are purged. When a gap removes a date, the
-loop reaches a candidate origin whose eligible training set is too small and skips it with
-<code>continue</code>, which is the correct behaviour but reads as a redundant check until you
-work through the gap case.</p></div>
+<i>position</i> in the date list. The <code>len(eligible_train_dates) &lt; min_train_dates</code>
+check uses it as the <i>count</i> of dates that remain
+after purging. They differ when a data gap removes rows, so the candidate origin is skipped with
+<code>continue</code> when too little training data remains.</p></div>
 
 <div class="box warn"><span class="k">Trap: <code>min_train_dates</code> has a real cliff</span>
-<p>The tracked data has five feature dates. Set <code>min_train_dates</code> to 5 or more in
-<code>config.toml</code> and the loop body never executes, producing zero predictions. That used
-to surface as a confusing <code>KeyError: 'model_name'</code> inside the metrics step; the
-pipeline now raises a clear message instead. See <a href="#fixes">Fixes applied</a>.</p></div>
+<p>The tracked data has five feature dates. Setting <code>min_train_dates</code> to 5 or more in
+<code>config.toml</code> means the loop produces no predictions. This used to become
+<code>KeyError: 'model_name'</code> in the
+metrics step; the pipeline now raises a clear message. See <a href="#fixes">Fixes applied</a>.</p></div>
 
 <div class="box flag"><span class="k">The stated honest weakness</span>
-<p>One scored date. Six forecasts. The six are all US large-cap stocks on the same day, so they
-share the same market move and are nowhere near six independent observations. Any ranking of the
-three models here is noise. <code>docs/reference/assumptions.md</code> says this in as many words,
-and it is the right call to say it rather than dress the numbers up.</p></div>
+<p>There is one scored date and six forecasts. The six United States (US) large-cap stocks share that day's market
+move, so they are not six independent observations. Model rankings here are noise.
+<code>docs/reference/assumptions.md</code> records this limitation.</p></div>
 
 <h2 id="sec8"><span class="sec-no">08</span>Scoring &mdash; <code>compute_model_metrics</code></h2>
 
@@ -941,30 +913,30 @@ and it is the right call to say it rather than dress the numbers up.</p></div>
         )</pre>
 
 <div class="box gist"><span class="k">In plain words</span>
-<p>For each model it measures how far the forecasts were from the truth, then asks the only
-question that matters: was it better or worse than simply saying "tomorrow equals today"?</p></div>
+<p>For each model, measures how far the forecasts were from the outcomes, then asks whether it beat
+the reference available at forecast time: "tomorrow equals today".</p></div>
 
 <div class="box def"><span class="k">What it does</span>
 <p><b>Input:</b> the prediction frame.
-<b>Output:</b> a nested dictionary, model name to <code>{rmse, mae, skill_vs_persistence}</code>,
-written straight to <code>metrics.json</code>.
-<b>Role:</b> the project's headline answer.</p></div>
+<b>Output:</b> a nested dictionary mapping each model name to
+<code>{rmse, mae, skill_vs_persistence}</code>, written to <code>metrics.json</code>.
+<b>Role:</b> produces the project's main comparison.</p></div>
 
 <div class="box def"><span class="k">The formula</span>
-<p>Write $e_m = y_m - \hat{y}_m$ for the error on forecast row $m$, over $N$ scored rows:</p>
+<p>Write $e_m = y_m - \hat{y}_m$ for the error on forecast row $m$, over $N$ scored rows. Root
+mean squared error (RMSE) and mean absolute error (MAE) are:</p>
 <p>$$\text{RMSE} = \sqrt{\frac{1}{N}\sum_{m=1}^{N} e_m^{2}}, \qquad
 \text{MAE} = \frac{1}{N}\sum_{m=1}^{N} \big|e_m\big|$$</p>
-<p>Forecast skill compares a model's total squared error against persistence's, on exactly the
-same rows:</p>
+<p>Forecast skill compares a model's sum of squared errors (SSE) with persistence's, on exactly
+the same rows:</p>
 <p>$$\text{skill}_M = 1 - \frac{SSE_M}{SSE_P},
 \qquad SSE_M = \sum_{m=1}^{N}\big(y_m - \hat{y}^{M}_m\big)^{2}$$</p>
-<p class="fnote">$y_m$ is the true next-day log realized variance for row $m$; $\hat{y}_m$ is the
-forecast. RMSE stands for root mean squared error and MAE for mean absolute error; both are in
-log-variance units, so a value of 1.0 means the forecast was off by a factor of $e \approx 2.72$
-in variance terms. $SSE$ stands for sum of squared errors. $SSE_M$ uses model $M$'s forecasts and
-$SSE_P$ persistence's. Skill is $0$ for persistence itself by construction, positive when a model
-beats persistence, and negative when it is worse. It has no upper bound below 1 and no lower bound
-above minus infinity.</p></div>
+<p class="fnote">$y_m$ is row $m$'s true next-day log realized variance; $\hat{y}_m$ is its forecast.
+RMSE means root mean squared error, and MAE means mean absolute error. Both are in log-variance
+units, so an error of 1.0 means a variance factor of $e \approx 2.72$. $SSE$ means sum of squared
+errors; $SSE_M$ uses model $M$ and $SSE_P$ uses persistence. Skill is $0$ for persistence, positive
+when a model beats it, and negative when it does worse. It is bounded above by 1 but has no finite
+lower bound.</p></div>
 
 <div class="box data"><span class="k">Sample data</span>
 <div class="io">
@@ -992,60 +964,55 @@ ridge         SSE =  8.497269</pre></div>
 }</pre></div>
 </div>
 <p><b>Hand check.</b> Ridge skill $= 1 - 8.497269/10.138489 = 0.161880$, matching the file.
-Persistence RMSE $= \sqrt{10.138489/6} = 1.299903$, also matching. These six numbers come from a
-single forecast date; see the limitations section before reading anything into them.</p></div>
+Persistence RMSE $= \sqrt{10.138489/6} = 1.299903$, also matching. These six values come from one
+forecast date; see the limitations section before drawing conclusions.</p></div>
 
 <div class="box why"><span class="k">Why persistence is the denominator</span>
-<p>An earlier version of this code scored models against the average of the held-out outcomes.
-That average is not knowable at forecast time, so it is not a benchmark anyone could have traded
-against &mdash; it flatters any model that merely predicts near the sample mean. Persistence is
-something a person could actually have done on the day, so beating it is a real claim. The change
-is recorded in <code>GUIDE_evaluation.md</code>'s journal.</p></div>
+<p>An earlier version scored models against the average held-out outcome. That average is not known
+at forecast time, so it is not a usable benchmark and favours models that predict near the sample
+mean. Persistence is available on the day, so beating it is a meaningful comparison. The change is
+recorded in <code>GUIDE_evaluation.md</code>'s journal.</p></div>
 
 <div class="box why"><span class="k">Why the merge is so strict</span>
-<p><code>validate="one_to_one"</code> plus the row-count equality check means a model is scored
-only if it forecast <b>exactly</b> the same symbol-and-date rows as persistence, no more and no
-fewer. Without it, a model that quietly skipped its hardest days would show a flattering skill
-number computed against a different, easier denominator.</p></div>
+<p><code>validate="one_to_one"</code> and the row-count check require each model to forecast
+<b>exactly</b> the same symbol-and-date rows as persistence. Without this, a model could skip its
+hardest days and report skill on an easier set of rows.</p></div>
 
 <div class="box warn"><span class="k">Trap: one branch of the skill guard is missing</span>
 <p>The guard returns 0.0 only when <b>both</b> sums of squared errors are zero. If persistence is
-perfect ($SSE_P = 0$) while the model is not, the expression divides a positive float by 0.0 and
-raises <code>ZeroDivisionError</code>. It needs a forecast that is right to the last floating-point
-bit, so it will not happen on real data, but it is a genuine hole rather than a handled case.</p></div>
+perfect ($SSE_P = 0$) but the model is not, the expression divides by zero and raises
+<code>ZeroDivisionError</code>. That exact case is unlikely on real data, but it is not handled.</p></div>
 
 <h2 id="sec9"><span class="sec-no">09</span>Charts &mdash; <code>write_diagnostic_figures</code></h2>
 
 <div class="box gist"><span class="k">In plain words</span>
-<p>Writes four PNG files: the average daily choppiness over time, ridge forecasts against what
-actually happened, a histogram of the misses, and a bar chart of the fitted weights.</p></div>
+<p>Writes four Portable Network Graphics (PNG) files: average daily movement over time, ridge
+forecasts against outcomes, a histogram of errors, and a bar chart of fitted weights.</p></div>
 
 <div class="box def"><span class="k">What it does</span>
 <p><b>Input:</b> the daily realized-variance table, the predictions, the coefficients, and a
 destination folder.
 <b>Output:</b> <code>realized_variance_history.png</code>, <code>prediction_vs_actual.png</code>,
-<code>residual_distribution.png</code>, <code>coefficient_bar_chart.png</code>.
-<b>Role:</b> the eyeball check. It returns nothing; the files are the product.</p></div>
+<code>residual_distribution.png</code>, and <code>coefficient_bar_chart.png</code>.
+<b>Role:</b> provides a visual check. It returns nothing; the files are the output.</p></div>
 
 <div class="box why"><span class="k">Why every figure goes through <code>_save_figure</code></span>
-<p>It saves and then calls <code>plt.close(figure)</code>. Matplotlib keeps every figure alive in
-a global registry until it is closed, so a loop that builds figures without closing them leaks
-memory and eventually prints a warning about too many open figures. Routing all four through one
-helper makes forgetting impossible.</p></div>
+<p>It saves each figure and then calls <code>plt.close(figure)</code>. Matplotlib keeps open figures
+in a global registry, so a loop that never closes them leaks memory and eventually warns about too
+many open figures. Sending all four through one helper makes the close step consistent.</p></div>
 
 <div class="box warn"><span class="k">Trap the code used to fall into</span>
-<p>Six symbols share the same forecast date, so consecutive rows of the prediction frame are
-<b>different stocks</b>, not successive points in time. Drawing them with a line chart invented a
-path between unrelated observations and rendered as a single vertical stripe. It now plots
-markers only. See <a href="#fixes">Fixes applied</a>.</p></div>
+<p>Six symbols share each forecast date, so consecutive prediction rows are <b>different stocks</b>,
+not successive times. A line chart connected unrelated observations into a vertical stripe. The
+code now plots markers only. See <a href="#fixes">Fixes applied</a>.</p></div>
 
 <div class="box flag"><span class="k">Still not a good chart</span>
-<p>With one forecast date, matplotlib's automatic date axis pads out to roughly a four-year span
-around that single point, so the markers huddle in the middle of an almost empty plot. The fix
-is more scored dates, not more plotting code. A predicted-against-actual scatter, with forecast
-on one axis and outcome on the other, would be the more informative chart at this sample size.</p></div>
+<p>With one forecast date, Matplotlib's automatic date axis spans roughly four years around that
+point, leaving the markers in a mostly empty plot. More scored dates would fix this; more plotting
+code would not. At this sample size, a scatter plot with forecast on one axis and outcome on the
+other would be more useful.</p></div>
 
-<h2 id="sec10"><span class="sec-no">10</span>Wiring it together &mdash; <code>run_offline_demo</code> and the CLI</h2>
+<h2 id="sec10"><span class="sec-no">10</span>Wiring it together &mdash; <code>run_offline_demo</code> and the command-line interface</h2>
 
 <pre>def run_offline_demo(output_directory: Path) -&gt; None:
     config = load_app_config()
@@ -1086,37 +1053,35 @@ on one axis and outcome on the other, would be the more informative chart at thi
     coefficients.to_csv(output_directory / "coefficients.csv", index=False)</pre>
 
 <div class="box gist"><span class="k">In plain words</span>
-<p>Calls the six stages in order, checks that the experiment actually produced something, then
-writes the scores, the forecasts, the weights and the charts to a folder.</p></div>
+<p>Calls the six stages in order, checks that the experiment produced predictions, then writes the
+scores, forecasts, weights, and charts to a folder.</p></div>
 
 <div class="box def"><span class="k">What it does</span>
 <p><b>Input:</b> one destination folder.
-<b>Output:</b> nothing returned; four files plus a <code>figures/</code> subfolder on disk.
-<b>Role:</b> the whole project in twenty lines. This is the file to read first.</p></div>
+<b>Output:</b> nothing returned; four files and a <code>figures/</code> subfolder on disk.
+<b>Role:</b> coordinates the project in twenty lines. Read this file first.</p></div>
 
 <div class="box why"><span class="k">Why no stage keeps state</span>
-<p>Every stage is a plain function taking frames and returning frames. Nothing is stored on an
-object between calls, so the notebook can call exactly the same functions in exactly the same
-order and get the same answer, and a test can call any single stage with a fabricated frame.
-That is why <code>tests/</code> can check the realized-variance formula against four hand-written
-bars without touching the file system.</p></div>
+<p>Each stage is a function that takes tables and returns tables. Nothing is stored between calls,
+so the notebook can run the same functions in the same order and tests can call one stage with a
+fabricated table. That lets <code>tests/</code> check the realized-variance formula with four
+hand-written bars without using the file system.</p></div>
 
-<div class="box def"><span class="k">What the CLI adds</span>
-<p><code>cli.py</code> is thin on purpose: build an argument parser, pick the output directory,
-call <code>run_offline_demo</code>, print where the files went, return an exit code.
+<div class="box def"><span class="k">What the command-line interface (CLI) adds</span>
+<p><code>cli.py</code> is intentionally small: it builds an argument parser, selects the output
+directory, calls <code>run_offline_demo</code>, prints the destination, and returns an exit code.
 <code>--output-dir</code> is resolved with <code>Path(...).resolve()</code>, which is relative to
 <b>your current shell directory</b>, while the default from the config file is relative to the
-project root. The two behave differently on purpose: a path you typed should mean what you meant.</p></div>
+project root. This keeps an explicitly entered path tied to the directory where it was entered.</p></div>
 
 <div class="box warn"><span class="k">Trap: <code>outputs/</code> is not tracked</span>
-<p><code>.gitignore</code> excludes <code>outputs/</code> and <code>logs/</code>. Artifacts from a
-run are local only; a fresh clone has no <code>outputs/demo_run</code> until you run the demo.
-That is deliberate, but it means charts you are looking at may be stale relative to the code.</p></div>
+<p><code>.gitignore</code> excludes <code>outputs/</code> and <code>logs/</code>. Run artifacts are
+local, so a fresh clone has no <code>outputs/demo_run</code> until the demo runs. Charts already on
+your machine may therefore be older than the code.</p></div>
 
 <h2 id="fixes"><span class="sec-no">11</span>Fixes applied</h2>
 
-<p>Four defects were found while reading and were fixed. Nothing else was changed: no
-restructuring, no renaming, no style edits.</p>
+<p>Four defects were found and fixed. No restructuring, renaming, or style changes were made.</p>
 
 <div class="scroll">
 <table>
@@ -1125,56 +1090,51 @@ restructuring, no renaming, no style edits.</p>
 <tr>
   <td><code>pipeline/run_offline_demo.py</code>, <code>app/config.py</code>, <code>app/config.toml</code></td>
   <td><span class="chip c-bug">config</span> <code>min_train_dates=4</code> and
-  <code>ridge_alpha=1.0</code> were typed straight into the call site as bare numbers, even though
-  the project already has a <code>config.toml</code>. Changing the warm-up or the regularisation
-  meant editing source code.</td>
-  <td>Added a <code>[modeling]</code> section to <code>config.toml</code> with a comment on each
-  option, added the two fields to <code>AppConfig</code>, and read them in the pipeline.</td>
-  <td>The demo still produces the same 18 predictions and the same
-  <code>skill_vs_persistence = 0.161880</code>, so the default behaviour is unchanged.</td>
+  <code>ridge_alpha=1.0</code> were hard-coded at the call site even though the project already
+  had <code>config.toml</code>. Changing either setting required a source edit.</td>
+  <td>Added a <code>[modeling]</code> section to <code>config.toml</code> with comments, added both
+  fields to <code>AppConfig</code>, and read them in the pipeline.</td>
+  <td>The demo still produces 18 predictions and
+  <code>skill_vs_persistence = 0.161880</code>; the default behaviour is unchanged.</td>
 </tr>
 <tr>
   <td><code>pipeline/run_offline_demo.py</code></td>
   <td><span class="chip c-drop">obscure failure</span> A <code>min_train_dates</code> larger than
-  the number of available feature dates produced an empty prediction frame, which then failed
-  inside the metrics step with <code>KeyError: 'model_name'</code> &mdash; a message that points
-  at the wrong file.</td>
-  <td>Added an explicit emptiness check right after the walk-forward call, raising a
-  <code>ValueError</code> that names the setting and the number of dates available.</td>
-  <td>Temporarily setting <code>min_train_dates = 9</code> now raises: <i>"Walk-forward produced
-  no out-of-sample predictions. min_train_dates=9 exceeds the 5 feature dates available."</i></td>
+  the available feature dates produced an empty prediction frame, then failed in metrics with
+  <code>KeyError: 'model_name'</code>, pointing to the wrong stage.</td>
+  <td>Added an immediate emptiness check that raises a <code>ValueError</code> naming the setting
+  and the available dates.</td>
+  <td>With <code>min_train_dates = 9</code>, the code now raises: <i>"Walk-forward produced no
+  out-of-sample predictions. min_train_dates=9 exceeds the 5 feature dates available."</i></td>
 </tr>
 <tr>
   <td><code>evaluation/diagnostics.py</code></td>
   <td><span class="chip c-veto">misleading chart</span> <code>prediction_vs_actual.png</code> drew
-  a <b>line</b> through rows sorted by target date. Six different symbols share each date, so the
-  line connected unrelated observations and rendered as a single vertical stripe.</td>
-  <td>Switched both series to markers only (<code>linestyle="none"</code>, circles for actual and
-  crosses for predicted), and made the sort deterministic by adding <code>symbol</code> as a
-  tiebreaker.</td>
-  <td>Regenerated the figure: twelve distinct markers where there was previously one stripe.</td>
+  a <b>line</b> through rows sorted by target date. Because six symbols share each date, the line
+  connected unrelated observations into one vertical stripe.</td>
+  <td>Changed both series to markers only (<code>linestyle="none"</code>) and added
+  <code>symbol</code> as a deterministic sort tiebreaker.</td>
+  <td>The regenerated figure has twelve distinct markers instead of one stripe.</td>
 </tr>
 <tr>
   <td><code>app/cli.py</code></td>
   <td><span class="chip c-never">latent</span> <code>run_selected_command</code> is annotated
-  <code>-&gt; int</code>, but the <code>build-raw-manifest</code> branch returned a value only from
-  inside its <code>except</code> block. If the call ever stopped raising, the function would fall
-  off the end returning <code>None</code>, and <code>SystemExit(None)</code> means exit code
-  <b>0</b> &mdash; a failing command reporting success.</td>
-  <td>Moved the <code>return 1</code> outside the <code>except</code> block so the branch always
-  returns a failure code.</td>
-  <td><code>build-raw-manifest</code> still prints its message and exits 1; the CLI test that
-  asserts a non-zero exit code still passes.</td>
+  <code>-&gt; int</code>, but the <code>build-raw-manifest</code> branch returned only inside its
+  <code>except</code> block. If the call stopped raising, the function would return
+  <code>None</code>; <code>SystemExit(None)</code> means exit code <b>0</b>, so a failing command
+  would report success.</td>
+  <td>Moved <code>return 1</code> outside the <code>except</code> block so the branch always returns
+  a failure code.</td>
+  <td><code>build-raw-manifest</code> still prints its message and exits 1; its CLI test passes.</td>
 </tr>
 </tbody>
 </table>
 </div>
 
-<p class="fnote">All 15 tests pass before and after. Several other things noted on this page were
-deliberately <b>not</b> changed, because they are design smells rather than live defects: the
-duplicated session window and timezone, the unused <code>is_complete_session</code> column, the
-silently-skipped missing symbol, and the divide-by-zero branch in the skill guard. Each is
-described in the sections above and in the table below.</p>
+<p class="fnote">All 15 tests pass before and after. Other findings were deliberately <b>not</b>
+changed because they are design weaknesses rather than live defects: the duplicated session window and timezone, the
+unused <code>is_complete_session</code> column, the silently skipped missing symbol, and the
+divide-by-zero branch in the skill guard. They are described above and below.</p>
 
 <h2 id="callgraph"><span class="sec-no">12</span>Call graph</h2>
 
@@ -1203,29 +1163,29 @@ described in the sections above and in the table below.</p>
      └─ data_access.clickhouse_extract.raise_optional_clickhouse_message()
                                                           [build-raw-manifest] always raises</pre>
 
-<p class="fnote">Indentation is "calls". The notebook
+<p class="fnote">Indentation shows calls. The notebook
 <code>notebooks/intraday_variance_walkthrough.ipynb</code> enters the same tree from the middle,
-calling <code>load_raw_manifest</code> onwards directly, then <code>run_offline_demo</code> at the
-end. <code>blog/generate_charts.py</code> uses only <code>load_app_config</code>.</p>
+calling <code>load_raw_manifest</code> onwards, then ends with <code>run_offline_demo</code>.
+<code>blog/generate_charts.py</code> uses only <code>load_app_config</code>.</p>
 
 <h2 id="edge"><span class="sec-no">13</span>Edge cases</h2>
 
 <div class="scroll">
 <table>
-<thead><tr><th>Situation</th><th>What would go wrong</th><th>What handles it</th></tr></thead>
+<thead><tr><th>Situation</th><th>Risk</th><th>Handling</th></tr></thead>
 <tbody>
 <tr><td>Realized variance is exactly zero on a flat day</td><td><code>log(0)</code> is minus infinity and poisons every rolling statistic downstream</td><td><span class="pass">Handled.</span> <code>clip(lower=EPSILON_VARIANCE)</code> floors it at $10^{-12}$ before the logarithm</td></tr>
 <tr><td>The first bar of a trading day</td><td>Has no previous bar; a naive shift would create an overnight return that dwarfs every intraday one</td><td><span class="pass">Handled.</span> <code>groupby(["symbol","date"])</code> before <code>shift(1)</code>, and the sum skips missing values</td></tr>
-<tr><td>Daylight saving time change</td><td>The session sits at 13:30 UTC in summer and 14:30 UTC in winter; a UTC-clock filter would cut the wrong hour</td><td><span class="pass">Handled.</span> Filtering converts to <code>America/New_York</code> first</td></tr>
+<tr><td>Daylight saving time change</td><td>The session sits at 13:30 Coordinated Universal Time (UTC) in summer and 14:30 UTC in winter; a UTC-clock filter would cut the wrong hour</td><td><span class="pass">Handled.</span> Filtering converts to <code>America/New_York</code> first</td></tr>
 <tr><td>Weekend or holiday between two rows</td><td>"Next day" is three calendar days later, so a fixed +1-day rule would find no label</td><td><span class="pass">Handled.</span> <code>shift(-1)</code> takes the next observed row and stores the real <code>target_date</code></td></tr>
 <tr><td>A symbol has a data gap, so its label lands after the forecast date</td><td>Look-ahead: the model trains on an outcome nobody could have known yet</td><td><span class="pass">Handled.</span> <code>target_date &lt;= test_date</code> purges it; a dedicated test proves it</td></tr>
 <tr><td>A feature is constant across the training window</td><td>Standardizing divides by zero, producing infinities that break the fit</td><td><span class="pass">Handled.</span> <code>_standardize</code> replaces a zero divisor with 1.0, giving an all-zero column</td></tr>
 <tr><td>A model forecasts a different set of rows than persistence</td><td>Skill compares two different denominators and looks better than it is</td><td><span class="pass">Handled.</span> <code>validate="one_to_one"</code> plus an explicit row-count equality check</td></tr>
-<tr><td><code>min_train_dates</code> exceeds the dates available</td><td>Empty prediction frame, then a <code>KeyError</code> pointing at the wrong module</td><td><span class="pass">Handled</span> by this session's fix: an explicit <code>ValueError</code> naming the setting</td></tr>
+<tr><td><code>min_train_dates</code> exceeds the dates available</td><td>Empty prediction frame, then a <code>KeyError</code> pointing at the wrong module</td><td><span class="pass">Handled.</span> An explicit <code>ValueError</code> names the setting</td></tr>
 <tr><td>Persistence is perfect but the model is not</td><td><code>1 - SSE_M / 0.0</code> raises <code>ZeroDivisionError</code></td><td><span class="failw">Not handled.</span> The guard covers only the both-zero case. Needs bit-exact forecasts, so it is theoretical</td></tr>
 <tr><td>A symbol in the manifest has no folder on disk</td><td>The run silently uses five symbols instead of six</td><td><span class="failw">Not handled.</span> <code>discover_raw_parquet_paths</code> raises only if <b>all</b> symbols are missing</td></tr>
 <tr><td>The manifest says the session is 09:30&ndash;16:00</td><td>The loader keeps 09:30&ndash;15:59 regardless</td><td><span class="failw">Not handled.</span> The window is a module constant; only the timezone is read from the manifest</td></tr>
-<tr><td>A parquet file is missing one required column</td><td>Every later stage fails on a missing column</td><td><span class="pass">Handled loudly.</span> <code>bars.loc[:, manifest.required_columns]</code> raises a <code>KeyError</code> naming the column</td></tr>
+<tr><td>A parquet file is missing one required column</td><td>A later stage fails on a missing column</td><td><span class="pass">Handled.</span> <code>bars.loc[:, manifest.required_columns]</code> raises a <code>KeyError</code> naming the column</td></tr>
 </tbody>
 </table>
 </div>
@@ -1234,18 +1194,18 @@ end. <code>blog/generate_charts.py</code> uses only <code>load_app_config</code>
 
 <div class="scroll">
 <table>
-<thead><tr><th>What you see</th><th>What it really means</th><th>The trap</th></tr></thead>
+<thead><tr><th>What you see</th><th>Meaning</th><th>Trap</th></tr></thead>
 <tbody>
-<tr><td><code>current_log_rv</code> is a feature, not a lag</td><td>The forecast is made after the close, so today's realized variance is already measured</td><td>Reads like leakage at a glance. It is not &mdash; but only because the forecast origin is post-close. Move the origin to mid-session and this feature becomes cheating</td></tr>
-<tr><td><code>rolling(5)</code> includes the current row</td><td>The window is days $d-4$ through $d$</td><td>Same point: legitimate post-close, illegitimate intraday</td></tr>
+<tr><td><code>current_log_rv</code> is a feature, not a lag</td><td>The forecast is made after the close, so today's realized variance is known</td><td>It looks like leakage, but is valid only after the close. At mid-session it would use future information</td></tr>
+<tr><td><code>rolling(5)</code> includes the current row</td><td>The window is days $d-4$ through $d$</td><td>Valid after the close; invalid during the day</td></tr>
 <tr><td><code>parents[3]</code> in <code>config.py</code></td><td>Four levels up from <code>app/config.toml</code> is the project root</td><td>Silently wrong if the file is ever moved between folders</td></tr>
-<tr><td><code>bar_completeness</code> weight of exactly 0.0</td><td>The column is constant, so standardizing turns it into zeros</td><td>Easy to read as "the model decided this feature does not matter". The model was never given the chance</td></tr>
-<tr><td><code>skill_vs_persistence</code> of 0.16</td><td>Ridge's squared error was 16% lower than persistence's on six rows from one day</td><td>Six correlated forecasts from a single date. Not a result</td></tr>
-<tr><td>RMSE of about 1.2</td><td>Errors are in log-variance units</td><td>An error of 1.2 in logs is a factor of $e^{1.2}\approx 3.3$ in variance. The numbers look small only because logs compress</td></tr>
-<tr><td><code>build-raw-manifest</code> always fails</td><td>It is a deliberate signpost for a database path that is out of scope</td><td>Looks like a broken command in a demo. It is intentional and documented</td></tr>
-<tr><td><code>Path(args.output_dir).resolve()</code></td><td>Resolved against your shell's directory</td><td>Differs from the config default, which is resolved against the project root. Same-looking paths land in different places</td></tr>
-<tr><td>Prices in the sample climb almost linearly</td><td>The payload has no stated provenance</td><td>The pipeline runs correctly on it, which proves the plumbing and nothing about markets</td></tr>
-<tr><td>No annualisation anywhere</td><td>Daily realized variance is left in decimal-return-squared units</td><td>Multiplying by 252, or volatility by $\sqrt{252}$, only rescales every number by the same constant. It changes no ranking and adds an assumption that every day looks alike</td></tr>
+<tr><td><code>bar_completeness</code> weight of exactly 0.0</td><td>The column is constant, so standardizing turns it into zeros</td><td>This does not show that the model rejected the feature; the data gave it no variation to use</td></tr>
+<tr><td><code>skill_vs_persistence</code> of 0.16</td><td>Ridge's squared error was 16% lower than persistence's on six rows from one day</td><td>Six correlated forecasts from one date are not enough to support a result</td></tr>
+<tr><td>RMSE of about 1.2</td><td>Errors are in log-variance units</td><td>An error of 1.2 in logs is a variance factor of $e^{1.2}\approx 3.3$; logs compress the scale</td></tr>
+<tr><td><code>build-raw-manifest</code> always fails</td><td>It marks a database path that is out of scope</td><td>It looks broken, but the failure is intentional and documented</td></tr>
+<tr><td><code>Path(args.output_dir).resolve()</code></td><td>Resolves from your shell's directory</td><td>The config default resolves from the project root, so similar paths can point to different places</td></tr>
+<tr><td>Prices in the sample climb almost linearly</td><td>The payload has no stated provenance</td><td>The pipeline proves its workflow runs, not that the data represents markets</td></tr>
+<tr><td>No annualisation anywhere</td><td>Daily realized variance stays in decimal-return-squared units</td><td>Multiplying by 252, or volatility by $\sqrt{252}$, rescales every number but changes no ranking. It also assumes every day is comparable</td></tr>
 </tbody>
 </table>
 </div>
@@ -1253,74 +1213,71 @@ end. <code>blog/generate_charts.py</code> uses only <code>load_app_config</code>
 <h2 id="limits"><span class="sec-no">15</span>Limitations, stated honestly</h2>
 
 <div class="box flag"><span class="k">One scored date is not an experiment</span>
-<p>Ten trading days, minus four consumed by the rolling window and one by the missing next-day
-label, leaves five feature dates. A four-date warm-up leaves exactly one forecast origin. Every
-metric on this page rests on six numbers produced on a single day. The correct reading is
-"the pipeline runs end to end", not "ridge beats persistence".</p></div>
+<p>Ten trading days lose four to the rolling window and one to the missing next-day label, leaving
+five feature dates. A four-date warm-up leaves one forecast origin. Every metric rests on six
+values from one day. The supported conclusion is "the pipeline runs end to end", not "ridge beats
+persistence".</p></div>
 
 <div class="box flag"><span class="k">The data has no known origin</span>
-<p><code>raw_manifest.json</code> records no vendor, no extraction date, no method. The reference
-docs say the prices may be synthetic. Every downstream statistic inherits that uncertainty.</p></div>
+<p><code>raw_manifest.json</code> records no vendor, extraction date, or method. The reference
+documents say the prices may be synthetic, so every downstream statistic carries that uncertainty.</p></div>
 
 <div class="box flag"><span class="k">No uncertainty on any number</span>
-<p>The metrics are point estimates with no confidence interval, no Diebold-Mariano test (the
-standard test for whether one forecast is genuinely better than another), and no bootstrap.
-At six observations none of those would be meaningful either, which is the deeper problem.</p></div>
+<p>The metrics are point estimates: there is no confidence interval, Diebold-Mariano test (a test
+of whether one forecast is genuinely better than another), or bootstrap. With six observations,
+none would be meaningful; the small sample is the deeper problem.</p></div>
 
 <div class="box flag"><span class="k">One number per day discards most of the data</span>
-<p>The pipeline reads 23,400 minute bars and reduces them to 60 daily numbers, then to 30 modelling
-rows. Well-known refinements are absent: no jump-robust estimator such as bipower variation, no
-correction for the bid-ask bounce that inflates realized variance at high sampling frequencies, no
-overnight-return component, and no signature-plot check that one minute is even the right sampling
-interval for this data.</p></div>
+<p>The pipeline reads 23,400 minute bars, reduces them to 60 daily numbers, and then to 30 modelling
+rows. It does not use a jump-robust estimator such as bipower variation, correct for bid-ask bounce,
+include overnight returns, or check with a signature plot whether one minute is the right sampling
+interval.</p></div>
 
 <div class="box flag"><span class="k">The model set is deliberately small</span>
-<p>Three rules only. There is no HAR model &mdash; the heterogeneous autoregressive model, which
-regresses tomorrow's realized variance on its own daily, weekly and monthly averages and is the
-standard benchmark in this literature. There is no GARCH model and no hyperparameter search;
-<code>ridge_alpha</code> is fixed at 1.0 rather than chosen on a validation window. This is a scope
-decision stated in the README, not an oversight, but a reader should know what is missing.</p></div>
+<p>There are only three rules. There is no heterogeneous autoregressive (HAR) model, which regresses
+tomorrow's realized variance on daily, weekly, and monthly averages and is a standard benchmark.
+There is no generalized autoregressive conditional heteroskedasticity (GARCH) model or
+hyperparameter search. <code>ridge_alpha</code> stays at 1.0 instead of being chosen on a validation
+window. This is a scope decision stated in the README.</p></div>
 
 <div class="box flag"><span class="k">Pooling six symbols into one regression</span>
-<p>The ridge model fits one set of weights across all symbols at once, treating an AAPL row and an
-XOM row as interchangeable observations. That is a real modelling assumption &mdash; that the
-relationship between recent and future choppiness is the same for every stock &mdash; and it is
-nowhere stated or tested. It also means the residuals within a date are correlated, which any
-later attempt at inference would have to account for.</p></div>
+<p>The ridge model fits one set of weights across all symbols, treating an AAPL row and an XOM row
+as interchangeable. This assumes the relationship between recent and future movement is the same
+for every stock, but the assumption is not stated or tested. Residuals within a date are also
+correlated, which later statistical inference would need to address.</p></div>
 
 <h2 id="verify"><span class="sec-no">16</span>How the code is verified</h2>
 
 <div class="scroll">
 <table>
-<thead><tr><th>Check</th><th>How it works</th><th>What it catches</th></tr></thead>
+<thead><tr><th>Check</th><th>Method</th><th>What it catches</th></tr></thead>
 <tbody>
-<tr><td><code>test_raw_contract.py</code> (3 tests)</td><td>Recomputes file count, byte total and row count from the parquet files and compares with the manifest; also asserts every parquet lives under <code>data/raw/</code> and the payload is under 100 MB</td><td>A manifest that has drifted from the data it describes, and stray data files outside the agreed folder</td></tr>
-<tr><td><code>test_realized_variance.py</code></td><td>Feeds four hand-written bars with prices 100, 101, 99, 100 and checks the returned variance equals the hand-computed sum of squared log returns</td><td>Any change to the core formula, including a wrong grouping or a missing square</td></tr>
-<tr><td><code>test_feature_building.py</code></td><td>Builds features from eight fabricated days and asserts that <code>current_log_rv</code> equals the log of that day's variance and the target equals the log of the <i>next</i> day's</td><td>An off-by-one in the shift, which is the classic way look-ahead sneaks in</td></tr>
-<tr><td><code>test_modeling_pipeline.py</code> (2 tests)</td><td>One test checks shape, finiteness and that <code>feature_date &lt; target_date</code> everywhere. The second fabricates a data gap and asserts scoring starts one date later than it otherwise would</td><td>Exactly the look-ahead the <code>target_date &lt;= test_date</code> purge exists to prevent</td></tr>
-<tr><td><code>test_evaluation_metrics.py</code></td><td>Hand-built forecasts where persistence errs by 2 on both rows and ridge by 1, giving skill $1 - 2/8 = 0.75$</td><td>A skill formula inverted, or computed against the wrong denominator</td></tr>
-<tr><td><code>test_offline_demo.py</code></td><td>Runs the whole pipeline into a temporary folder and asserts all four artifacts exist, the three model names are present, persistence skill is exactly 0.0, and no HTML file was written</td><td>Any stage that breaks the chain, plus scope creep into a reporting layer the project excludes</td></tr>
-<tr><td><code>test_cli.py</code> (4 tests)</td><td>Runs both commands as real subprocesses and checks exit codes, printed text and written files</td><td>Argument-parsing errors and the wrong exit code on the failure path</td></tr>
-<tr><td><code>test_notebook_walkthrough.py</code> (2 tests)</td><td>Executes the notebook with <code>nbconvert</code> and asserts no two code cells sit next to each other without explanation between them</td><td>A notebook that has silently stopped running, or that has drifted into a code dump</td></tr>
+<tr><td><code>test_raw_contract.py</code> (3 tests)</td><td>Recomputes file count, byte total, and row count from the parquet files; compares them with the manifest; checks every parquet file is under <code>data/raw/</code> and the payload is under 100 MB</td><td>A stale manifest or data files outside the agreed folder</td></tr>
+<tr><td><code>test_realized_variance.py</code></td><td>Feeds four bars priced 100, 101, 99, and 100, then compares the result with the hand-computed sum of squared log returns</td><td>A changed formula, wrong grouping, or missing square</td></tr>
+<tr><td><code>test_feature_building.py</code></td><td>Builds features from eight fabricated days and checks that <code>current_log_rv</code> uses that day's variance and the target uses the <i>next</i> day's</td><td>An off-by-one shift that introduces look-ahead</td></tr>
+<tr><td><code>test_modeling_pipeline.py</code> (2 tests)</td><td>Checks shape, finite values, and <code>feature_date &lt; target_date</code>; then adds a data gap and checks that scoring starts one date later</td><td>The look-ahead that <code>target_date &lt;= test_date</code> is meant to prevent</td></tr>
+<tr><td><code>test_evaluation_metrics.py</code></td><td>Uses forecasts where persistence errs by 2 on both rows and ridge by 1, giving skill $1 - 2/8 = 0.75$</td><td>An inverted skill formula or wrong denominator</td></tr>
+<tr><td><code>test_offline_demo.py</code></td><td>Runs the pipeline in a temporary folder and checks the four artifacts, three model names, zero persistence skill, and no HTML file</td><td>A broken stage or an excluded reporting layer appearing</td></tr>
+<tr><td><code>test_cli.py</code> (4 tests)</td><td>Runs both commands as subprocesses and checks exit codes, printed text, and files</td><td>Argument parsing and failure-path exit codes</td></tr>
+<tr><td><code>test_notebook_walkthrough.py</code> (2 tests)</td><td>Executes the notebook with <code>nbconvert</code> and checks that every adjacent pair of code cells has an explanation between them</td><td>A stopped notebook or a code dump</td></tr>
 </tbody>
 </table>
 </div>
 
 <div class="box def"><span class="k">Result on this checkout</span>
-<p><code>uv run python -m pytest -q</code> gives <b>15 passed</b>, before and after the four fixes
-in section 11. The demo command was also run for real: it wrote <code>metrics.json</code>,
-<code>predictions.parquet</code>, <code>coefficients.csv</code> and four PNGs to
-<code>outputs/demo_run</code>. Every number quoted on this page came from that run.</p></div>
+<p><code>uv run python -m pytest -q</code> gives <b>15 passed</b> before and after the four fixes
+in section 11. The demo also wrote <code>metrics.json</code>, <code>predictions.parquet</code>,
+<code>coefficients.csv</code>, and four PNGs to <code>outputs/demo_run</code>. Every number on this
+page came from that run.</p></div>
 
 <div class="box warn"><span class="k">One thing the tests cannot tell you</span>
-<p>They confirm the code does what it was designed to do. They cannot confirm the design answers
-the research question, because that needs more than one scored date. Passing tests and a
-meaningful result are separate claims, and only the first one holds here.</p></div>
+<p>They confirm that the code follows its design. They cannot show that the design answers the
+research question, which requires more than one scored date. Passing tests and a meaningful result
+are separate claims; only the first is supported here.</p></div>
 
-<p class="foot">Companion reading: <code>README.md</code> for scope, <code>GUIDE_OVERVIEW.md</code>
-for architecture, <code>docs/reference/assumptions.md</code> for the modelling assumptions in the
-project's own words, and <code>notebooks/intraday_variance_walkthrough.ipynb</code> to step through
-the same pipeline interactively.</p>
+<p class="foot">Read <code>README.md</code> for scope, <code>GUIDE_OVERVIEW.md</code> for architecture,
+<code>docs/reference/assumptions.md</code> for the project's modelling assumptions, and
+<code>notebooks/intraday_variance_walkthrough.ipynb</code> for an interactive walkthrough.</p>
 
 </div>
 </body>
