@@ -6,13 +6,13 @@ image: images/cover-realized-variance-forecast.png
 categories: ["Quantitative Research", "Risk Management"]
 ---
 
-# Forecasting Tomorrow's Realized Variance Without Borrowing Tomorrow's Data
+# Forecasting tomorrow's realized variance without borrowing tomorrow's data
 
-A volatility model can look impressive because of one bad timestamp. A rolling window can reach into the target session, a scaler can learn from the test set, or a score can compare the model with a benchmark that was unknowable when the forecast was made. None of those failures requires complicated code.
+A volatility model can look impressive because of one bad timestamp. A rolling window reaches into the target session. A scaler learns from the test set. A score compares the model with a benchmark nobody knew when the forecast was made. None of these failures needs complicated code.
 
-This project asks a deliberately small question: after today's regular session closes, can today's and recent intraday realized variance forecast the next session better than persistence? The tracked fixture has 23,400 one-minute rows for AAPL, MSFT, NVDA, JPM, XOM, and CVX over ten sessions from March 24 through April 6, 2026.
+I kept the research question small. After today's regular session closes, can today's and recent intraday realized variance forecast the next session better than persistence? The tracked fixture has 23,400 one-minute rows for AAPL, MSFT, NVDA, JPM, XOM, and CVX over ten sessions from March 24 through April 6, 2026.
 
-That sample is useful for testing a research pipeline. It cannot establish a trading result. The manifest also omits the data vendor, extraction method, and whether the prices are synthetic. I therefore treat the bars as a reproducible fixture, not verified historical market evidence.
+That sample is enough to test a research pipeline. It cannot establish a trading result. The manifest also omits the data vendor, extraction method, and whether the prices are synthetic. I treat the bars as a reproducible fixture, not verified historical market evidence.
 
 ## The forecast clock
 
@@ -26,7 +26,7 @@ The forecast origin is after the cash close on date $d$. At that point, every re
 | Training labels | Target dates no later than forecast origin $d$ | 24 rows across four dates |
 | Held-out forecasts | Features dated April 3, target dated April 6 | 6 rows on one date |
 
-The six held-out rows are a cross-section, not six independent test periods. A market-wide volatility shock can move all six stocks together. The effective time-series test size is one.
+The six held-out rows form one cross-section, not six independent test periods. A market-wide volatility shock can move all six stocks together. In time-series terms, the test size is one.
 
 ## From minute prices to realized variance
 
@@ -141,7 +141,7 @@ The 24 training rows are pooled across six symbols. They are not 24 independent 
 
 ## A feasible score against persistence
 
-For $m$ held-out forecasts, let $e_{M,j}=y_j-\widehat y_{M,j}$ be model $M$'s log-variance error. Root mean squared error (RMSE) and mean absolute error (MAE) are
+For $m$ held-out forecasts, let $e_{M,j}=y_j-\widehat y_{M,j}$ be model $M$'s log-variance error. Root mean squared error, or RMSE, and mean absolute error, or MAE, are
 
 $$
 \mathrm{RMSE}_M
@@ -170,7 +170,7 @@ Persistence has skill zero by construction. Positive skill improves on persisten
 
 Ridge reduces squared error by 16.19 percent relative to persistence on this one cross-section. The five-session mean increases it by 52.20 percent. Ridge's RMSE is 8.45 percent lower than persistence's because RMSE takes the square root of average squared error.
 
-The absolute errors are economically large. Since the target is logarithmic, an absolute log error $a$ corresponds to a multiplicative variance ratio of $\exp(a)$. Exponentiating ridge's MAE gives $\exp(1.089)\approx2.97$. This is a scale summary, not a confidence interval, but it makes clear that “best” does not mean “accurate.”
+The absolute errors are economically large. Since the target is logarithmic, an absolute log error $a$ corresponds to a multiplicative variance ratio of $\exp(a)$. Exponentiating ridge's MAE gives $\exp(1.089)\approx2.97$. This is a scale summary, not a confidence interval, but it makes clear that "best" does not mean "accurate."
 
 ![Actual and forecast next-day log realized variance](images/03_forecast_cross_section.png)
 
@@ -189,13 +189,13 @@ $$
 
 The project does not test that equation. Its $RV$ excludes overnight returns, while an option lives through the full clock. Gamma changes with spot and time, transaction costs matter, and a forecast of $\log(RV)$ is not automatically a forecast of mean variance. Because the exponential function is convex, $\exp(\widehat y)$ estimates a conditional median under common log-error assumptions, not the conditional mean, unless a bias correction is added.
 
-## What the experiment proves
+## What the experiment actually proves
 
 The reproducible run verifies session assignment, within-session return construction, feature timing, label availability, train-only scaling, three forecast rules, and artifact generation. Regression tests include a hand-calculated realized-variance example, a missing-date purge case, and a hand-calculated persistence-skill case.
 
 It does not prove predictive power. A serious study needs years of documented market data, many walk-forward dates across volatility regimes, symbol- and date-level error reporting, uncertainty for paired loss differences, and a decision-specific treatment of overnight variance. Sampling frequency also deserves testing because one-minute prices can contain market microstructure noise.
 
-The most defensible result is therefore procedural: on six forecasts from one date, ridge has positive skill against persistence, but the sample has essentially no power to distinguish a durable forecasting edge from noise.
+The result I trust is procedural. On six forecasts from one date, ridge has positive skill against persistence. The sample has essentially no power to distinguish a durable forecasting edge from noise.
 
 ## References
 

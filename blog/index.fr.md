@@ -8,11 +8,11 @@ categories: ["Quantitative Research", "Risk Management"]
 
 # Prévoir la variance réalisée de demain sans emprunter ses données
 
-Un modèle de volatilité peut sembler excellent à cause d'un seul mauvais horodatage. Une fenêtre glissante atteint la séance cible, la standardisation apprend sur le test, ou le score compare le modèle à une référence impossible à connaître au moment de la prévision. Aucun de ces échecs n'exige un code compliqué.
+Un modèle de volatilité peut sembler excellent à cause d'un seul mauvais horodatage. Une fenêtre glissante atteint la séance cible. La standardisation apprend sur le test. Un score compare le modèle à une référence que personne ne connaissait au moment de la prévision. Aucun de ces échecs n'exige un code compliqué.
 
-Ce projet pose une question volontairement étroite : après la clôture de la séance régulière, la variance réalisée du jour et son historique récent prévoient-ils mieux la séance suivante que la persistance ? Le jeu suivi contient 23 400 lignes d'une minute pour AAPL, MSFT, NVDA, JPM, XOM et CVX, sur dix séances entre le 24 mars et le 6 avril 2026.
+J'ai gardé une question de recherche étroite. Après la clôture de la séance régulière, la variance réalisée du jour et son historique récent prévoient-ils mieux la séance suivante que la persistance ? Le jeu suivi contient 23 400 lignes d'une minute pour AAPL, MSFT, NVDA, JPM, XOM et CVX, sur dix séances entre le 24 mars et le 6 avril 2026.
 
-Cet échantillon suffit pour tester une chaîne de recherche. Il ne peut pas établir un résultat de trading. Le manifeste ne précise ni le fournisseur, ni la méthode d'extraction, ni si les prix sont synthétiques. Je traite donc ces barres comme un jeu reproductible destiné au développement, et non comme une preuve empirique sur les marchés.
+Cet échantillon suffit pour tester une chaîne de recherche. Il ne peut pas établir un résultat de trading. Le manifeste ne précise ni le fournisseur, ni la méthode d'extraction, ni si les prix sont synthétiques. Je traite ces barres comme un jeu reproductible destiné au développement, et non comme une preuve empirique sur les marchés.
 
 ## L'horloge de la prévision
 
@@ -26,7 +26,7 @@ L'origine de la prévision se situe après la clôture au comptant de la date $d
 | Cibles d'apprentissage | Dates cibles au plus tard à l'origine $d$ | 24 lignes sur quatre dates |
 | Prévisions hors échantillon | Variables du 3 avril, cible du 6 avril | 6 lignes sur une date |
 
-Les six lignes hors échantillon forment une coupe transversale, pas six périodes de test indépendantes. Un choc de volatilité de marché peut toucher les six actions en même temps. La taille effective du test temporel est égale à un.
+Les six lignes hors échantillon forment une coupe transversale, pas six périodes de test indépendantes. Un choc de volatilité de marché peut toucher les six actions en même temps. Du point de vue temporel, la taille du test est égale à un.
 
 ## Des prix minute par minute à la variance réalisée
 
@@ -141,7 +141,7 @@ Les 24 lignes d'apprentissage mélangent six titres. Elles ne constituent pas 24
 
 ## Un score réalisable face à la persistance
 
-Pour $m$ prévisions hors échantillon, $e_{M,j}=y_j-\widehat y_{M,j}$ désigne l'erreur de variance logarithmique du modèle $M$. La racine de l'erreur quadratique moyenne, ou RMSE (*root mean squared error*), et l'erreur absolue moyenne, ou MAE (*mean absolute error*), valent
+Pour $m$ prévisions hors échantillon, $e_{M,j}=y_j-\widehat y_{M,j}$ désigne l'erreur de variance logarithmique du modèle $M$. La racine de l'erreur quadratique moyenne, appelée *root mean squared error* en anglais et abrégée RMSE, et l'erreur absolue moyenne, appelée *mean absolute error* en anglais et abrégée MAE, valent
 
 $$
 \mathrm{RMSE}_M
@@ -189,13 +189,13 @@ $$
 
 Le projet ne teste pas cette équation. Son $RV$ exclut les rendements nocturnes alors qu'une option vit en temps continu. Le gamma varie avec le spot et le temps, les coûts de transaction comptent, et une prévision de $\log(RV)$ ne fournit pas automatiquement la moyenne de la variance. Comme l'exponentielle est convexe, $\exp(\widehat y)$ estime une médiane conditionnelle sous les hypothèses usuelles sur l'erreur logarithmique, et non la moyenne conditionnelle, sauf correction du biais.
 
-## Ce que démontre l'expérience
+## Ce que l'expérience démontre vraiment
 
 L'exécution reproductible vérifie l'affectation des séances, le calcul des rendements intrajournaliers, la temporalité des variables, la disponibilité des cibles, la standardisation limitée à l'apprentissage, les trois règles de prévision et la production des fichiers. Les tests comprennent un calcul manuel de variance réalisée, un cas de purge avec date manquante et un calcul manuel du score face à la persistance.
 
 Elle ne démontre aucun pouvoir prédictif. Une étude sérieuse demanderait plusieurs années de données documentées, de nombreuses dates walk-forward couvrant différents régimes de volatilité, des erreurs par date et par titre, une mesure d'incertitude sur les différences de pertes appariées et un traitement de la variance nocturne adapté à la décision. Il faudrait aussi comparer plusieurs fréquences, car les prix à une minute peuvent contenir du bruit de microstructure.
 
-Le résultat le plus défendable concerne donc la méthode : sur six prévisions d'une seule date, ridge affiche un score positif face à la persistance, mais l'échantillon n'a pratiquement aucun pouvoir pour séparer un avantage durable du bruit.
+Le résultat auquel je me fie concerne la méthode. Sur six prévisions d'une seule date, ridge affiche un score positif face à la persistance. L'échantillon n'a pratiquement aucun pouvoir pour séparer un avantage durable du bruit.
 
 ## Références
 
