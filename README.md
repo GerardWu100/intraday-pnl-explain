@@ -69,7 +69,3 @@ outputs/                    generated run artifacts (not tracked in git)
 - `predictions.parquet` — per-date, per-symbol forecasts
 - `coefficients.csv` — fitted ridge coefficients
 - `figures/*.png` — realized-variance history, prediction-vs-actual, residual distribution, coefficient bar chart
-
-## License
-
-All rights reserved. See [LICENSE](LICENSE).
